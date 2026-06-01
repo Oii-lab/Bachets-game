@@ -3,692 +3,1433 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bachet's Game — 巴謝特遊戲</title>
+<title>數學博弈遊戲集</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;700&family=Fira+Code:wght@400;500&display=swap');
 
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a28;
-    --border: #2a2a40;
-    --accent: #00e5ff;
-    --accent2: #ff4081;
-    --accent3: #69ff47;
-    --text: #e8e8f0;
-    --text-dim: #6a6a8a;
-    --glow: rgba(0,229,255,0.3);
-    --glow2: rgba(255,64,129,0.3);
+    --bg:#0a0a0f; --surface:#12121a; --surface2:#1a1a28; --border:#2a2a40;
+    --accent:#00e5ff; --accent2:#ff4081; --accent3:#69ff47; --accent4:#ffd740; --accent5:#ea80fc;
+    --text:#e8e8f0; --text-dim:#6a6a8a;
+    --glow:rgba(0,229,255,0.3);
   }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;overflow-x:hidden;}
+  body::before{content:'';position:fixed;inset:0;
+    background-image:linear-gradient(rgba(0,229,255,0.03)1px,transparent 1px),linear-gradient(90deg,rgba(0,229,255,0.03)1px,transparent 1px);
+    background-size:40px 40px;pointer-events:none;z-index:0;}
+  .container{position:relative;z-index:1;max-width:820px;margin:0 auto;padding:32px 20px 80px;}
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  header{text-align:center;margin-bottom:40px;}
+  header .title{font-family:'Orbitron',monospace;font-size:clamp(22px,5vw,46px);font-weight:900;letter-spacing:0.04em;
+    background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent5));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 20px var(--glow));line-height:1.1;}
+  header .subtitle{font-size:12px;color:var(--text-dim);margin-top:8px;letter-spacing:0.15em;text-transform:uppercase;}
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Noto Sans TC', sans-serif;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+  /* c4 c5 for new game cards */
+  .game-card.c4:hover{border-color:var(--accent3);} .game-card.c4::before{background:var(--accent3);}
+  .game-card.c5:hover{border-color:var(--accent5);} .game-card.c5::before{background:var(--accent5);}
 
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
-    background-size: 40px 40px;
-    pointer-events: none;
-    z-index: 0;
-  }
+  /* Nim heaps */
+  .heap-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0;}
+  .heap-col{display:flex;flex-direction:column;align-items:center;gap:6px;}
+  .heap-label{font-family:'Orbitron',monospace;font-size:11px;color:var(--text-dim);letter-spacing:0.1em;}
+  .heap-stones{display:flex;flex-direction:column;gap:3px;align-items:center;min-height:120px;justify-content:flex-end;}
+  .heap-stone{width:22px;height:22px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8fd4f8,#1a7aaa);
+    box-shadow:0 2px 6px rgba(0,0,0,0.5);flex-shrink:0;}
+  .heap-stone.taken{background:radial-gradient(circle at 35% 35%,#ff8a80,#c62828);animation:takePop 0.3s ease;}
+  .heap-count{font-family:'Orbitron',monospace;font-size:18px;font-weight:700;color:var(--accent);}
+  .nim-xor-display{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;
+    margin:14px 0;text-align:center;}
+  .nim-xor-val{font-family:'Orbitron',monospace;font-size:32px;font-weight:900;transition:color 0.3s;}
+  .nim-xor-val.zero{color:var(--accent2);}
+  .nim-xor-val.nonzero{color:var(--accent3);}
+  .nim-xor-label{font-size:11px;color:var(--text-dim);margin-top:4px;letter-spacing:0.1em;}
+  .nim-take-area{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0;}
+  .heap-btn{background:var(--surface2);border:2px solid var(--border);border-radius:10px;color:var(--text);
+    font-size:13px;font-weight:700;padding:8px 14px;cursor:pointer;transition:all 0.2s;}
+  .heap-btn:hover:not(:disabled){border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.08);}
+  .heap-btn:disabled{opacity:0.28;cursor:not-allowed;}
+  .heap-btn.selected{border-color:var(--accent4);color:var(--accent4);background:rgba(255,215,64,0.1);}
 
-  .container {
-    position: relative;
-    z-index: 1;
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 32px 20px 60px;
-  }
+  /* Wythoff */
+  .wythoff-grid-wrap{overflow:auto;max-height:320px;margin:14px 0;}
+  .wythoff-grid{display:grid;gap:3px;}
+  .wythoff-cell{width:34px;height:34px;border-radius:6px;display:flex;align-items:center;justify-content:center;
+    font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;transition:all 0.18s;
+    border:1px solid transparent;user-select:none;}
+  .wythoff-cell.alive{background:var(--surface2);border-color:var(--border);color:var(--text-dim);}
+  .wythoff-cell.alive:hover{border-color:var(--accent4);color:var(--accent4);transform:scale(1.1);background:rgba(255,215,64,0.08);}
+  .wythoff-cell.losing{background:rgba(255,64,129,0.15);border-color:var(--accent2);color:var(--accent2);}
+  .wythoff-cell.current{background:rgba(0,229,255,0.2);border-color:var(--accent);color:var(--accent);
+    box-shadow:0 0 12px var(--glow);animation:pulse 1s ease infinite;}
+  .wythoff-cell.eaten{background:rgba(255,255,255,0.02);border-color:rgba(255,255,255,0.04);color:transparent;cursor:default;}
+  .wythoff-legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11px;color:var(--text-dim);margin-bottom:10px;}
+  .wythoff-legend span{display:flex;align-items:center;gap:5px;}
+  .wythoff-legend .dot{width:12px;height:12px;border-radius:3px;flex-shrink:0;}
 
-  header { text-align: center; margin-bottom: 40px; }
-  header .title {
-    font-family: 'Orbitron', monospace;
-    font-size: clamp(28px, 6vw, 52px);
-    font-weight: 900;
-    letter-spacing: 0.04em;
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    filter: drop-shadow(0 0 20px var(--glow));
-    line-height: 1.1;
-  }
-  header .subtitle {
-    font-size: 13px;
-    color: var(--text-dim);
-    margin-top: 8px;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-  }
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;margin-bottom:20px;display:none;}
+  .panel.active{display:block;animation:fadeIn 0.3s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
 
-  .panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 28px;
-    margin-bottom: 20px;
-    display: none;
-  }
-  .panel.active { display: block; animation: fadeIn 0.3s ease; }
+  .panel-title{font-family:'Orbitron',monospace;font-size:12px;letter-spacing:0.2em;text-transform:uppercase;
+    color:var(--accent);margin-bottom:20px;display:flex;align-items:center;gap:10px;}
+  .panel-title::after{content:'';flex:1;height:1px;background:linear-gradient(90deg,var(--border),transparent);}
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 22px;border-radius:10px;
+    border:1px solid var(--border);font-family:'Noto Sans TC',sans-serif;font-size:14px;font-weight:700;
+    cursor:pointer;transition:all 0.2s;background:var(--surface2);color:var(--text);position:relative;overflow:hidden;}
+  .btn::before{content:'';position:absolute;inset:0;opacity:0;transition:opacity 0.2s;border-radius:inherit;}
+  .btn:hover::before{opacity:1;} .btn:hover{transform:translateY(-2px);} .btn:active{transform:translateY(0);}
+  .btn-primary{background:var(--accent);border-color:var(--accent);color:#000;}
+  .btn-primary::before{background:rgba(255,255,255,0.15);} .btn-primary:hover{box-shadow:0 0 24px var(--glow);}
+  .btn-outline{background:transparent;border-color:var(--accent);color:var(--accent);}
+  .btn-outline:hover{background:rgba(0,229,255,0.08);box-shadow:0 0 16px var(--glow);}
+  .btn-algo{background:transparent;border-color:var(--accent5);color:var(--accent5);}
+  .btn-algo:hover{background:rgba(234,128,252,0.08);box-shadow:0 0 16px rgba(234,128,252,0.3);}
+  .btn-lg{padding:15px 30px;font-size:16px;border-radius:12px;}
+  .btn-sm{padding:7px 14px;font-size:12px;border-radius:8px;}
+  .btn:disabled{opacity:0.35;cursor:not-allowed;transform:none!important;box-shadow:none!important;}
+  .btn-row{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px;}
 
-  .panel-title {
-    font-family: 'Orbitron', monospace;
-    font-size: 13px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    color: var(--accent);
-    margin-bottom: 20px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .panel-title::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, var(--border), transparent);
-  }
+  .input-group{margin-bottom:14px;}
+  .input-group label{display:block;font-size:11px;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
+  .input-group input,.input-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+    padding:11px 15px;color:var(--text);font-size:14px;font-family:inherit;transition:border-color 0.2s,box-shadow 0.2s;outline:none;appearance:none;}
+  .input-group input:focus,.input-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.1);}
 
-  .btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 8px;
-    padding: 12px 24px;
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    font-family: 'Noto Sans TC', sans-serif;
-    font-size: 15px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    background: var(--surface2);
-    color: var(--text);
-    position: relative;
-    overflow: hidden;
-  }
-  .btn::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    opacity: 0;
-    transition: opacity 0.2s;
-    border-radius: inherit;
-  }
-  .btn:hover::before { opacity: 1; }
-  .btn:hover { transform: translateY(-2px); }
-  .btn:active { transform: translateY(0); }
-  .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; }
-  .btn-primary::before { background: rgba(255,255,255,0.15); }
-  .btn-primary:hover { box-shadow: 0 0 24px var(--glow); }
-  .btn-outline { background: transparent; border-color: var(--accent); color: var(--accent); }
-  .btn-outline:hover { background: rgba(0,229,255,0.08); box-shadow: 0 0 16px var(--glow); }
-  .btn-lg { padding: 16px 32px; font-size: 17px; border-radius: 12px; }
-  .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
-  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+  .game-select-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px;}
+  @media(max-width:540px){.game-select-grid{grid-template-columns:1fr;}}
+  .game-card{background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:22px 16px;
+    cursor:pointer;transition:all 0.25s;text-align:center;position:relative;overflow:hidden;}
+  .game-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0;opacity:0;transition:opacity 0.25s;}
+  .game-card:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(0,0,0,0.4);} .game-card:hover::before{opacity:1;}
+  .game-card.c1:hover{border-color:var(--accent);} .game-card.c1::before{background:var(--accent);}
+  .game-card.c2:hover{border-color:var(--accent2);} .game-card.c2::before{background:var(--accent2);}
+  .game-card.c3:hover{border-color:var(--accent4);} .game-card.c3::before{background:var(--accent4);}
+  .game-card .icon{font-size:34px;margin-bottom:10px;display:block;}
+  .game-card .card-title{font-family:'Orbitron',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;color:var(--text);}
+  .game-card .card-desc{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5;}
 
-  .input-group { margin-bottom: 16px; }
-  .input-group label {
-    display: block;
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-  .input-group input, .input-group select {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    color: var(--text);
-    font-size: 15px;
-    font-family: inherit;
-    transition: border-color 0.2s, box-shadow 0.2s;
-    outline: none;
-    appearance: none;
-  }
-  .input-group input:focus, .input-group select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
-  }
+  .mode-tabs{display:flex;gap:8px;margin-bottom:18px;}
+  .mode-tab{flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);
+    color:var(--text-dim);font-size:13px;font-weight:700;cursor:pointer;transition:all 0.2s;text-align:center;}
+  .mode-tab.active{border-color:var(--accent);color:var(--accent);background:rgba(0,229,255,0.08);}
 
-  .menu-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 14px;
-    margin-top: 8px;
-  }
-  @media (max-width: 480px) { .menu-grid { grid-template-columns: 1fr; } }
+  .status-bar{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 18px;
+    margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .status-dot{width:10px;height:10px;border-radius:50%;background:var(--text-dim);flex-shrink:0;transition:background 0.3s;}
+  .status-dot.your-turn{background:var(--accent3);box-shadow:0 0 10px var(--accent3);animation:pulse 1s ease infinite;}
+  .status-dot.waiting{background:var(--accent4);box-shadow:0 0 10px var(--accent4);}
+  .status-dot.over{background:var(--accent2);box-shadow:0 0 10px var(--accent2);}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
+  .status-text{flex:1;font-size:14px;font-weight:700;color:var(--text);}
+  .status-sub{font-size:11px;color:var(--text-dim);width:100%;margin-top:-4px;}
 
-  .menu-card {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    padding: 24px 20px;
-    cursor: pointer;
-    transition: all 0.25s;
-    text-align: center;
-    position: relative;
-    overflow: hidden;
-  }
-  .menu-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 3px;
-    border-radius: 14px 14px 0 0;
-    opacity: 0;
-    transition: opacity 0.25s;
-  }
-  .menu-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-  .menu-card:hover::before { opacity: 1; }
-  .menu-card.cyan::before  { background: var(--accent); }
-  .menu-card.pink::before  { background: var(--accent2); }
-  .menu-card.green::before { background: var(--accent3); }
-  .menu-card.yellow::before { background: #ffd740; }
-  .menu-card .icon { font-size: 36px; margin-bottom: 10px; display: block; }
-  .menu-card .card-title { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
-  .menu-card .card-desc { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+  .players-row{display:flex;gap:10px;margin-bottom:14px;}
+  .player-tag{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:11px 14px;
+    text-align:center;transition:border-color 0.2s,box-shadow 0.2s;}
+  .player-tag.active{border-color:var(--accent3);box-shadow:0 0 12px rgba(105,255,71,0.2);}
+  .player-tag .p-name{font-size:13px;font-weight:700;}
+  .player-tag .p-label{font-size:10px;color:var(--text-dim);margin-top:2px;letter-spacing:0.1em;text-transform:uppercase;}
 
-  #stones-area { text-align: center; margin: 24px 0; }
+  .game-log{max-height:110px;overflow-y:auto;background:var(--surface2);border:1px solid var(--border);
+    border-radius:10px;padding:10px 14px;font-size:12px;color:var(--text-dim);line-height:2;}
+  .game-log .log-entry{border-bottom:1px solid var(--border);padding:2px 0;}
+  .game-log .log-entry:last-child{border-bottom:none;}
+  .log-p1{color:var(--accent);} .log-p2{color:var(--accent2);} .log-sys{color:var(--accent4);}
 
-  .stones-display {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    justify-content: center;
-    min-height: 80px;
-    padding: 20px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    margin-bottom: 16px;
-    align-items: center;
-  }
+  .result-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.88);align-items:center;justify-content:center;
+    z-index:100;backdrop-filter:blur(5px);display:none;}
+  .result-overlay.show{display:flex;animation:fadeIn 0.3s ease;}
+  .result-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;
+    text-align:center;max-width:360px;width:90%;}
+  .result-emoji{font-size:60px;margin-bottom:12px;display:block;}
+  .result-title{font-family:'Orbitron',monospace;font-size:22px;font-weight:900;margin-bottom:8px;}
+  .result-msg{font-size:13px;color:var(--text-dim);margin-bottom:22px;line-height:1.8;white-space:pre-line;}
 
-  .stone {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    background: radial-gradient(circle at 35% 35%, #8fd4f8, #1a7aaa);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
-    transition: all 0.2s;
-    flex-shrink: 0;
-  }
-  .stone.taken {
-    background: radial-gradient(circle at 35% 35%, #ff8a80, #c62828);
-    animation: takePop 0.3s ease;
-  }
-  @keyframes takePop {
-    0%   { transform: scale(1.4); }
-    60%  { transform: scale(0.8); }
-    100% { transform: scale(1); }
-  }
+  .room-code-box{background:var(--surface2);border:2px dashed var(--accent);border-radius:14px;padding:22px;text-align:center;margin:14px 0;}
+  .room-code-box .code-label{font-size:10px;color:var(--text-dim);letter-spacing:0.2em;text-transform:uppercase;margin-bottom:8px;}
+  .room-code-box .code-val{font-family:'Orbitron',monospace;font-size:34px;font-weight:900;color:var(--accent);letter-spacing:0.3em;text-shadow:0 0 20px var(--glow);}
+  .room-code-box .code-hint{font-size:11px;color:var(--text-dim);margin-top:8px;}
 
-  .stones-count {
-    font-family: 'Orbitron', monospace;
-    font-size: 48px;
-    font-weight: 900;
-    color: var(--accent);
-    line-height: 1;
-    text-shadow: 0 0 30px var(--glow);
-  }
-  .stones-label {
-    font-size: 12px;
-    color: var(--text-dim);
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin-top: 4px;
-  }
+  .step{display:none;} .step.active{display:block;animation:fadeIn 0.25s ease;}
+  .divider{border:none;border-top:1px solid var(--border);margin:18px 0;}
+  .spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);
+    border-radius:50%;animation:spin 0.8s linear infinite;vertical-align:middle;margin-right:6px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
 
-  .take-btns {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin: 20px 0;
-  }
+  /* ===== BACHET ===== */
+  .stones-display{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;min-height:70px;padding:18px;
+    background:var(--surface2);border:1px solid var(--border);border-radius:14px;margin-bottom:14px;align-items:center;}
+  .stone{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8fd4f8,#1a7aaa);
+    box-shadow:0 2px 8px rgba(0,0,0,0.5),inset 0 -2px 4px rgba(0,0,0,0.3);flex-shrink:0;}
+  .stone.taken{background:radial-gradient(circle at 35% 35%,#ff8a80,#c62828);animation:takePop 0.3s ease;}
+  @keyframes takePop{0%{transform:scale(1.4)}60%{transform:scale(0.8)}100%{transform:scale(1)}}
+  .stones-count{font-family:'Orbitron',monospace;font-size:44px;font-weight:900;color:var(--accent);line-height:1;text-shadow:0 0 30px var(--glow);}
+  .stones-label{font-size:11px;color:var(--text-dim);letter-spacing:0.15em;text-transform:uppercase;margin-top:4px;}
+  .take-btns{display:flex;justify-content:center;flex-wrap:wrap;gap:10px;margin:16px 0;}
+  .take-btn{background:var(--surface2);border:2px solid var(--border);border-radius:12px;color:var(--text);
+    font-family:'Orbitron',monospace;font-size:19px;font-weight:700;width:60px;height:60px;cursor:pointer;
+    transition:all 0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+  .take-btn span.lbl{font-family:'Noto Sans TC',sans-serif;font-size:9px;font-weight:400;color:var(--text-dim);}
+  .take-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(0,229,255,0.1);transform:scale(1.1);box-shadow:0 0 20px var(--glow);color:var(--accent);}
+  .take-btn:active:not(:disabled){transform:scale(0.96);}
+  .take-btn:disabled{opacity:0.28;cursor:not-allowed;}
+  .warn-box{background:rgba(255,64,129,0.1);border:1px solid var(--accent2);border-radius:10px;padding:9px 14px;
+    font-size:12px;color:var(--accent2);text-align:center;margin-bottom:8px;display:none;}
+  .warn-box.show{display:block;animation:fadeIn 0.2s ease;}
 
-  .take-btn {
-    background: var(--surface2);
-    border: 2px solid var(--border);
-    border-radius: 12px;
-    color: var(--text);
-    font-family: 'Orbitron', monospace;
-    font-size: 20px;
-    font-weight: 700;
-    width: 64px;
-    height: 64px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-  }
-  .take-btn span.label { font-family: 'Noto Sans TC', sans-serif; font-size: 10px; font-weight: 400; color: var(--text-dim); letter-spacing: 0.1em; }
-  .take-btn:hover:not(:disabled) {
-    border-color: var(--accent);
-    background: rgba(0,229,255,0.1);
-    transform: scale(1.1);
-    box-shadow: 0 0 20px var(--glow);
-    color: var(--accent);
-  }
-  .take-btn:active:not(:disabled) { transform: scale(0.96); }
-  .take-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  /* ===== 21-POINT ===== */
+  .count-display{text-align:center;padding:28px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;margin:14px 0;}
+  .count-big{font-family:'Orbitron',monospace;font-size:72px;font-weight:900;color:var(--accent4);line-height:1;text-shadow:0 0 40px rgba(255,215,64,0.5);}
+  .count-label{font-size:11px;color:var(--text-dim);letter-spacing:0.2em;text-transform:uppercase;margin-top:6px;}
+  .count-track{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;padding:14px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:14px;margin-bottom:14px;min-height:52px;align-items:center;}
+  .track-num{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-family:'Orbitron',monospace;font-size:12px;font-weight:700;transition:all 0.25s;}
+  .track-num.p1{background:rgba(0,229,255,0.15);border:1px solid var(--accent);color:var(--accent);}
+  .track-num.p2{background:rgba(255,64,129,0.15);border:1px solid var(--accent2);color:var(--accent2);}
+  .track-num.target{background:rgba(255,215,64,0.2);border:1px solid var(--accent4);color:var(--accent4);animation:pulse 1s ease infinite;}
+  .say-btns{display:flex;justify-content:center;gap:12px;margin:16px 0;}
+  .say-btn{background:var(--surface2);border:2px solid var(--border);border-radius:12px;color:var(--text);
+    font-family:'Orbitron',monospace;font-size:16px;font-weight:700;min-width:80px;height:60px;cursor:pointer;
+    transition:all 0.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:0 16px;}
+  .say-btn span.lbl{font-family:'Noto Sans TC',sans-serif;font-size:9px;font-weight:400;color:var(--text-dim);}
+  .say-btn:hover:not(:disabled){border-color:var(--accent4);background:rgba(255,215,64,0.1);transform:scale(1.08);box-shadow:0 0 20px rgba(255,215,64,0.3);color:var(--accent4);}
+  .say-btn:active:not(:disabled){transform:scale(0.96);}
+  .say-btn:disabled{opacity:0.28;cursor:not-allowed;}
 
-  /* FIX: last-stone warning */
-  .last-stone-warning {
-    background: rgba(255,64,129,0.12);
-    border: 1px solid var(--accent2);
-    border-radius: 10px;
-    padding: 10px 16px;
-    font-size: 13px;
-    color: var(--accent2);
-    text-align: center;
-    margin-bottom: 8px;
-    display: none;
-  }
-  .last-stone-warning.show { display: block; animation: fadeIn 0.2s ease; }
+  /* ===== CHOMP ===== */
+  .chomp-wrap{text-align:center;}
+  .chomp-board{display:inline-block;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;margin:14px auto;}
+  .chomp-row{display:flex;gap:4px;margin-bottom:4px;}
+  .choc{width:44px;height:44px;border-radius:8px;cursor:pointer;transition:all 0.18s;border:2px solid transparent;
+    display:flex;align-items:center;justify-content:center;font-size:20px;user-select:none;}
+  .choc.alive{background:linear-gradient(135deg,#8B4513,#6B3410);border-color:#a0522d;box-shadow:0 2px 6px rgba(0,0,0,0.4);}
+  .choc.alive:hover{transform:scale(1.12);box-shadow:0 0 16px rgba(255,215,64,0.4);border-color:var(--accent4);z-index:2;position:relative;}
+  .choc.eaten{background:rgba(255,255,255,0.03);border-color:rgba(255,255,255,0.05);cursor:default;}
+  .choc.eaten:hover{transform:none;box-shadow:none;}
+  .choc.poison{background:linear-gradient(135deg,#7b1fa2,#4a0072);border-color:#9c27b0;}
+  .choc.poison:hover{box-shadow:0 0 16px rgba(234,128,252,0.5);border-color:var(--accent5);}
 
-  .status-bar {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 16px 20px;
-    margin-bottom: 16px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
-  .status-indicator {
-    width: 10px; height: 10px;
-    border-radius: 50%;
-    background: var(--text-dim);
-    flex-shrink: 0;
-    transition: background 0.3s;
-  }
-  .status-indicator.your-turn { background: var(--accent3); box-shadow: 0 0 10px var(--accent3); animation: pulse 1s ease infinite; }
-  .status-indicator.waiting   { background: #ffd740; box-shadow: 0 0 10px #ffd740; }
-  .status-indicator.over      { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+  /* ===== ALGO PANEL ===== */
+  .algo-panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:20px;overflow:hidden;display:none;}
+  .algo-panel.active{display:block;animation:fadeIn 0.3s ease;}
 
-  .status-text { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); }
-  .status-sub  { font-size: 12px; color: var(--text-dim); width: 100%; margin-top: -6px; }
+  .algo-nav{display:flex;border-bottom:1px solid var(--border);overflow-x:auto;}
+  .algo-nav-tab{padding:14px 20px;font-family:'Orbitron',monospace;font-size:11px;letter-spacing:0.12em;
+    text-transform:uppercase;color:var(--text-dim);cursor:pointer;white-space:nowrap;transition:all 0.2s;
+    border-bottom:2px solid transparent;margin-bottom:-1px;}
+  .algo-nav-tab:hover{color:var(--text);}
+  .algo-nav-tab.active{color:var(--accent5);border-bottom-color:var(--accent5);}
 
-  .players-row { display: flex; gap: 10px; margin-bottom: 16px; }
-  .player-tag {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    text-align: center;
-    transition: border-color 0.2s, box-shadow 0.2s;
-  }
-  .player-tag.active { border-color: var(--accent3); box-shadow: 0 0 12px rgba(105,255,71,0.2); }
-  .player-tag .p-name  { font-size: 14px; font-weight: 700; }
-  .player-tag .p-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .algo-content{padding:28px;}
+  .algo-section{display:none;animation:fadeIn 0.25s ease;}
+  .algo-section.active{display:block;}
 
-  .result-overlay {
-    position: fixed;
-    inset: 0;
-    background: rgba(10,10,15,0.85);
-    align-items: center;
-    justify-content: center;
-    z-index: 100;
-    backdrop-filter: blur(4px);
-    display: none;
-  }
-  .result-overlay.show { display: flex; animation: fadeIn 0.3s ease; }
-  .result-box {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 40px;
-    text-align: center;
-    max-width: 360px;
-    width: 90%;
-  }
-  .result-box .result-emoji { font-size: 64px; margin-bottom: 12px; display: block; }
-  .result-box .result-title { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900; margin-bottom: 8px; }
-  .result-box .result-msg { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.8; white-space: pre-line; }
+  /* Complexity badge */
+  .complexity-row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
+  .badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;border:1px solid;}
+  .badge-time{color:var(--accent);border-color:var(--accent);background:rgba(0,229,255,0.08);}
+  .badge-space{color:var(--accent4);border-color:var(--accent4);background:rgba(255,215,64,0.08);}
+  .badge-type{color:var(--accent5);border-color:var(--accent5);background:rgba(234,128,252,0.08);}
 
-  .room-code-box {
-    background: var(--surface2);
-    border: 2px dashed var(--accent);
-    border-radius: 14px;
-    padding: 24px;
-    text-align: center;
-    margin: 16px 0;
-  }
-  .room-code-box .code-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
-  .room-code-box .code-val {
-    font-family: 'Orbitron', monospace;
-    font-size: 36px;
-    font-weight: 900;
-    color: var(--accent);
-    letter-spacing: 0.3em;
-    text-shadow: 0 0 20px var(--glow);
-  }
-  .room-code-box .code-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+  /* Code block */
+  .code-block{background:#0d0d16;border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0;overflow-x:auto;position:relative;}
+  .code-block pre{font-family:'Fira Code',monospace;font-size:13px;line-height:1.7;color:#cdd6f4;}
+  .code-block .lang-tag{position:absolute;top:10px;right:14px;font-size:10px;color:var(--text-dim);font-family:'Orbitron',monospace;letter-spacing:0.1em;}
+  /* syntax highlight classes */
+  .kw{color:#cba6f7;} .fn{color:#89b4fa;} .str{color:#a6e3a1;} .num{color:#fab387;}
+  .cmt{color:#585b70;font-style:italic;} .op{color:#89dceb;} .cls{color:#f9e2af;}
 
-  .rules-block {
-    background: var(--surface2);
-    border-radius: 10px;
-    padding: 16px 20px;
-    margin-top: 8px;
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.8;
-  }
-  .rules-block strong { color: var(--accent); }
-  .rules-block ul { padding-left: 18px; margin-top: 4px; }
+  /* DP table visualizer */
+  .dp-table-wrap{overflow-x:auto;margin:14px 0;}
+  .dp-table{border-collapse:collapse;font-family:'Fira Code',monospace;font-size:12px;}
+  .dp-table th{background:var(--surface2);color:var(--text-dim);padding:6px 12px;border:1px solid var(--border);font-weight:400;}
+  .dp-table td{padding:6px 12px;border:1px solid var(--border);text-align:center;transition:background 0.3s;}
+  .dp-table td.win{color:var(--accent3);background:rgba(105,255,71,0.08);}
+  .dp-table td.lose{color:var(--accent2);background:rgba(255,64,129,0.08);}
+  .dp-table td.highlight{background:rgba(234,128,252,0.2)!important;outline:2px solid var(--accent5);}
 
-  .game-log {
-    max-height: 120px;
-    overflow-y: auto;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 16px;
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 2;
-  }
-  .game-log .log-entry { border-bottom: 1px solid var(--border); padding: 2px 0; }
-  .game-log .log-entry:last-child { border-bottom: none; }
-  .log-p1  { color: var(--accent); }
-  .log-p2  { color: var(--accent2); }
-  .log-sys { color: #ffd740; }
+  /* Interactive DP stepper */
+  .dp-stepper{background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0;}
+  .dp-stepper-title{font-size:12px;color:var(--text-dim);margin-bottom:12px;letter-spacing:0.05em;}
+  .dp-step-controls{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .dp-step-info{flex:1;font-size:13px;color:var(--text);min-width:160px;}
+  .dp-step-info span{color:var(--accent5);font-family:'Fira Code',monospace;}
 
-  .step { display: none; }
-  .step.active { display: block; animation: fadeIn 0.25s ease; }
+  /* LeetCode links */
+  .lc-list{display:flex;flex-direction:column;gap:8px;margin:14px 0;}
+  .lc-item{display:flex;align-items:center;gap:12px;background:var(--surface2);border:1px solid var(--border);
+    border-radius:10px;padding:12px 16px;transition:all 0.2s;text-decoration:none;}
+  .lc-item:hover{border-color:var(--accent5);background:rgba(234,128,252,0.05);transform:translateX(4px);}
+  .lc-num{font-family:'Orbitron',monospace;font-size:11px;color:var(--text-dim);min-width:36px;}
+  .lc-title{flex:1;font-size:13px;color:var(--text);font-weight:700;}
+  .lc-diff{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:700;}
+  .lc-easy{color:#6bcb77;background:rgba(107,203,119,0.15);}
+  .lc-medium{color:#ffa94d;background:rgba(255,169,77,0.15);}
+  .lc-hard{color:#ff6b6b;background:rgba(255,107,107,0.15);}
+  .lc-rel{font-size:10px;color:var(--accent5);}
 
-  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
-  .text-dim { color: var(--text-dim); font-size: 13px; }
-  .mt8  { margin-top: 8px; }
-  .mt16 { margin-top: 16px; }
+  /* Algo section headings */
+  .algo-h2{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;letter-spacing:0.1em;
+    color:var(--accent5);margin:22px 0 10px;display:flex;align-items:center;gap:8px;}
+  .algo-h2::before{content:'//';color:var(--text-dim);font-family:'Fira Code',monospace;}
+  .algo-p{font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;}
+  .algo-p strong{color:var(--text);}
+  .algo-p code{font-family:'Fira Code',monospace;font-size:12px;background:var(--surface2);
+    border:1px solid var(--border);border-radius:4px;padding:1px 6px;color:var(--accent4);}
 
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: var(--surface); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  /* Proof / insight box */
+  .insight-box{background:rgba(234,128,252,0.06);border-left:3px solid var(--accent5);
+    border-radius:0 10px 10px 0;padding:14px 18px;margin:14px 0;}
+  .insight-box .insight-label{font-family:'Orbitron',monospace;font-size:10px;letter-spacing:0.15em;
+    text-transform:uppercase;color:var(--accent5);margin-bottom:6px;}
+  .insight-box p{font-size:13px;color:var(--text-dim);line-height:1.8;}
+  .insight-box p strong{color:var(--text);}
 
-  .spinner {
-    display: inline-block;
-    width: 18px; height: 18px;
-    border: 2px solid var(--border);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-    vertical-align: middle;
-    margin-right: 6px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+  /* Minimax tree */
+  .tree-wrap{overflow-x:auto;padding:10px 0;}
+  .tree{display:flex;flex-direction:column;align-items:center;gap:0;font-family:'Fira Code',monospace;font-size:11px;}
+  .tree-row{display:flex;gap:8px;justify-content:center;margin-bottom:0;}
+  .tree-node{min-width:52px;padding:5px 8px;border-radius:8px;text-align:center;border:1px solid;transition:all 0.3s;}
+  .tree-node.win{color:var(--accent3);border-color:var(--accent3);background:rgba(105,255,71,0.08);}
+  .tree-node.lose{color:var(--accent2);border-color:var(--accent2);background:rgba(255,64,129,0.08);}
+  .tree-node.neutral{color:var(--text-dim);border-color:var(--border);background:var(--surface2);}
+  .tree-edge{display:flex;justify-content:center;gap:8px;height:20px;margin:0;}
+  .tree-edge-line{width:52px;display:flex;justify-content:center;}
+  .tree-edge-line::before{content:'│';color:var(--border);}
 
-  #confetti-canvas {
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    z-index: 200;
-    display: none;
-  }
+  /* confetti */
+  #confetti-canvas{position:fixed;inset:0;pointer-events:none;z-index:200;display:none;}
+
+  ::-webkit-scrollbar{width:5px;height:5px;}
+  ::-webkit-scrollbar-track{background:var(--surface);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
 </head>
 <body>
-
 <canvas id="confetti-canvas"></canvas>
-
 <div class="container">
 
-  <header>
-    <div class="title">BACHET'S GAME</div>
-    <div class="subtitle">巴謝特取石遊戲 &nbsp;·&nbsp; 策略數學博弈</div>
-  </header>
+<header>
+  <div class="title">數學博弈遊戲集</div>
+  <div class="subtitle">Bachet &nbsp;·&nbsp; 21點 &nbsp;·&nbsp; Nim多堆 &nbsp;·&nbsp; Wythoff &nbsp;·&nbsp; Chomp &nbsp;·&nbsp; 演算法解析</div>
+</header>
 
-  <!-- HOME -->
-  <div class="panel active" id="panel-home">
-    <div class="panel-title">選擇模式</div>
-    <div class="menu-grid">
-      <div class="menu-card cyan" onclick="startAIGame()">
-        <span class="icon">🤖</span>
-        <div class="card-title">人機對戰</div>
-        <div class="card-desc">挑戰 AI 電腦<br>有簡單/困難兩種難度</div>
-      </div>
-      <div class="menu-card pink" onclick="showPanel('panel-create')">
-        <span class="icon">🏠</span>
-        <div class="card-title">開房間</div>
-        <div class="card-desc">建立房間<br>分享代碼給朋友</div>
-      </div>
-      <div class="menu-card green" onclick="showPanel('panel-join')">
-        <span class="icon">🔗</span>
-        <div class="card-title">加入房間</div>
-        <div class="card-desc">輸入朋友的<br>房間代碼加入</div>
-      </div>
-      <div class="menu-card yellow" onclick="showPanel('panel-rules')">
-        <span class="icon">📖</span>
-        <div class="card-title">遊戲規則</div>
-        <div class="card-desc">了解 Bachet's Game<br>的規則與必勝策略</div>
-      </div>
+<!-- ===== HOME ===== -->
+<div class="panel active" id="panel-home">
+  <div class="panel-title">選擇遊戲</div>
+  <div class="game-select-grid" style="grid-template-columns:1fr 1fr 1fr;">
+    <div class="game-card c1" onclick="selectGame('bachet')">
+      <span class="icon">🪨</span>
+      <div class="card-title">Bachet's Game</div>
+      <div class="card-desc">取石遊戲<br>取走最後一顆者輸</div>
+    </div>
+    <div class="game-card c3" onclick="selectGame('count21')">
+      <span class="icon">🔢</span>
+      <div class="card-title">21點報數</div>
+      <div class="card-desc">輪流報數<br>說到目標數字者輸</div>
+    </div>
+    <div class="game-card c4" onclick="selectGame('nim')">
+      <span class="icon">⚡</span>
+      <div class="card-title">Nim 多堆版</div>
+      <div class="card-desc">多堆石頭輪流取<br>XOR 位元運算策略</div>
+    </div>
+    <div class="game-card c5" onclick="selectGame('wythoff')">
+      <span class="icon">φ</span>
+      <div class="card-title">Wythoff's Game</div>
+      <div class="card-desc">兩堆石頭<br>黃金比例必勝策略</div>
+    </div>
+    <div class="game-card c2" onclick="selectGame('chomp')">
+      <span class="icon">🍫</span>
+      <div class="card-title">Chomp</div>
+      <div class="card-desc">吃巧克力遊戲<br>吃到毒格者輸</div>
+    </div>
+  </div>
+  <div class="btn-row" style="margin-top:20px">
+    <button class="btn btn-algo" onclick="showPanel('panel-algo')">🧠 演算法解析</button>
+    <button class="btn btn-outline btn-sm" onclick="showPanel('panel-rules')">📖 遊戲規則</button>
+  </div>
+</div>
+
+<!-- ===== ALGO PANEL ===== -->
+<div class="panel" id="panel-algo">
+  <div class="panel-title">🧠 演算法解析</div>
+
+  <!-- Nav tabs -->
+  <div style="background:var(--surface2);border-radius:12px;overflow:hidden;margin-bottom:0;">
+    <div class="algo-nav">
+      <div class="algo-nav-tab active" onclick="algoTab('dp')">DP &amp; 數學</div>
+      <div class="algo-nav-tab" onclick="algoTab('nim')">Nim XOR &amp; Grundy</div>
+      <div class="algo-nav-tab" onclick="algoTab('wythoff')">Wythoff &amp; 黃金比例</div>
+      <div class="algo-nav-tab" onclick="algoTab('minimax')">Minimax</div>
+      <div class="algo-nav-tab" onclick="algoTab('complexity')">複雜度</div>
+      <div class="algo-nav-tab" onclick="algoTab('leetcode')">LeetCode 題目</div>
     </div>
   </div>
 
-  <!-- AI SETUP -->
-  <div class="panel" id="panel-ai-setup">
-    <div class="panel-title">人機對戰設定</div>
-    <div class="input-group">
-      <label>你的名稱</label>
-      <input type="text" id="ai-player-name" placeholder="玩家一" maxlength="16">
+  <div class="algo-content">
+
+    <!-- DP Section -->
+    <div class="algo-section active" id="algo-dp">
+      <div class="complexity-row">
+        <span class="badge badge-type">Dynamic Programming</span>
+        <span class="badge badge-type">Game Theory</span>
+        <span class="badge badge-type">Math Optimization</span>
+      </div>
+
+      <div class="algo-h2">哪些遊戲用到 DP？</div>
+      <div class="algo-p">
+        <strong>Bachet's Game</strong> 和 <strong>21點報數</strong> 的核心都是同一個 DP 問題，只是換了一層外殼。
+        DP 的目的是找出每個「狀態」是必贏（W）還是必輸（L）。
+      </div>
+
+      <div class="algo-h2">狀態定義與轉移</div>
+      <div class="algo-p">
+        定義 <code>dp[n]</code> = 當剩餘數字（或石頭數）為 <code>n</code> 時，<strong>當前輪到的玩家</strong>是 W 還是 L。
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="cmt"># Bachet's Game / 21點報數 通用 DP 解</span>
+<span class="kw">def</span> <span class="fn">solve_dp</span>(n: <span class="cls">int</span>, max_take: <span class="cls">int</span>) -> <span class="cls">list</span>:
+    <span class="cmt"># dp[i] = True 表示當前玩家「必贏」</span>
+    dp = [<span class="kw">False</span>] * (n + <span class="num">1</span>)
+    dp[<span class="num">0</span>] = <span class="kw">False</span>  <span class="cmt"># 0個石頭 → 上個人已輸，輪到自己是贏</span>
+    dp[<span class="num">1</span>] = <span class="kw">False</span>  <span class="cmt"># Misère: 只剩1顆必須取 → 必輸</span>
+
+    <span class="kw">for</span> i <span class="kw">in</span> <span class="fn">range</span>(<span class="num">2</span>, n + <span class="num">1</span>):
+        <span class="cmt"># 若存在某個取法使對手陷入 L，則當前是 W</span>
+        dp[i] = <span class="fn">any</span>(
+            <span class="kw">not</span> dp[i - take]
+            <span class="kw">for</span> take <span class="kw">in</span> <span class="fn">range</span>(<span class="num">1</span>, <span class="fn">min</span>(max_take, i) + <span class="num">1</span>)
+            <span class="kw">if</span> i - take >= <span class="num">1</span>  <span class="cmt"># 不能把所有石頭取完（Misère）</span>
+        )
+    <span class="kw">return</span> dp
+
+<span class="cmt"># 觀察 dp 陣列：(n=21, max_take=3)</span>
+<span class="cmt"># n: 1  2  3  4  5  6  7  8  ...</span>
+<span class="cmt"># dp: L  W  W  W  L  W  W  W  L  ...  ← 每 (max_take+1) 循環一次！</span></pre>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">💡 關鍵觀察：從 DP 到 O(1)</div>
+        <p>跑完 DP 後會發現<strong>週期性規律</strong>：每隔 <code>K = maxTake + 1</code> 格，必輸位置就重複出現一次。
+        這讓我們可以把 O(N) 的 DP 化簡成一行公式：<br><br>
+        <strong><code>n % (maxTake + 1) == 1</code> → 當前玩家必輸</strong><br><br>
+        這個「DP 推導規律 → 數學公式」的過程在演算法競賽裡非常常見。</p>
+      </div>
+
+      <div class="algo-h2">互動 DP 模擬</div>
+      <div class="dp-stepper">
+        <div class="dp-stepper-title">Bachet's Game｜石頭數 N=12，每次最多取 M=3</div>
+        <div class="dp-table-wrap" id="dp-table-container"></div>
+        <div class="dp-step-controls" style="margin-top:12px">
+          <button class="btn btn-sm" onclick="dpPrev()">← 上一步</button>
+          <div class="dp-step-info" id="dp-step-info">點擊「下一步」開始填表</div>
+          <button class="btn btn-primary btn-sm" onclick="dpNext()">下一步 →</button>
+          <button class="btn btn-sm" onclick="dpReset()">↺ 重置</button>
+        </div>
+      </div>
+
+      <div class="algo-h2">最優走法公式</div>
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">def</span> <span class="fn">best_move</span>(stones: <span class="cls">int</span>, max_take: <span class="cls">int</span>) -> <span class="cls">int</span>:
+    <span class="kw">if</span> stones == <span class="num">1</span>:
+        <span class="kw">return</span> <span class="num">1</span>  <span class="cmt"># 強制輸，沒得選</span>
+
+    k = max_take + <span class="num">1</span>
+    remainder = stones % k
+
+    <span class="kw">if</span> remainder == <span class="num">1</span>:
+        <span class="cmt"># 已在敗局，隨便取（這局輸了）</span>
+        <span class="kw">return</span> <span class="num">1</span>
+
+    <span class="cmt"># 取 (remainder-1) 讓對手面對 stones % k == 1</span>
+    take = (remainder - <span class="num">1</span>) <span class="kw">if</span> remainder > <span class="num">0</span> <span class="kw">else</span> k - <span class="num">1</span>
+    <span class="kw">return</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">min</span>(take, max_take, stones - <span class="num">1</span>))</pre>
+      </div>
     </div>
-    <div class="input-group">
-      <label>初始石頭數量</label>
-      <select id="ai-stones">
-        <option value="15">15 顆</option>
-        <option value="21" selected>21 顆（經典）</option>
-        <option value="30">30 顆</option>
-        <option value="50">50 顆</option>
-      </select>
+
+    <!-- Nim XOR & Sprague-Grundy Section -->
+    <div class="algo-section" id="algo-nim">
+      <div class="complexity-row">
+        <span class="badge badge-type">Bitwise XOR</span>
+        <span class="badge badge-type">Sprague-Grundy Theorem</span>
+        <span class="badge badge-type">Nim-value</span>
+      </div>
+
+      <div class="algo-h2">從單堆到多堆：為什麼需要 XOR？</div>
+      <div class="algo-p">
+        Bachet's Game 是<strong>單堆</strong> Nim，策略是 <code>n % (M+1)</code>。
+        但當有<strong>多堆石頭</strong>，每次只能從某一堆取時，這個公式就不夠用了。
+        需要用到<strong>位元互斥或（XOR / Nim-sum）</strong>，這是 Nim 多堆版的核心。
+      </div>
+
+      <div class="algo-h2">Nim-sum（XOR）策略</div>
+      <div class="insight-box">
+        <div class="insight-label">📐 Bouton 定理（1901年）</div>
+        <p>
+          設各堆石頭數為 <code>a₁, a₂, ..., aₖ</code>，定義 <strong>Nim-sum = a₁ XOR a₂ XOR ... XOR aₖ</strong>。<br><br>
+          <strong>Nim-sum = 0 → 當前玩家必輸（L position）</strong><br>
+          <strong>Nim-sum ≠ 0 → 當前玩家必贏（W position）</strong><br><br>
+          必勝走法：找到一堆，取走若干顆，使得取完後所有堆的 XOR 變為 0。
+        </p>
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">def</span> <span class="fn">nim_is_losing</span>(heaps: <span class="cls">list</span>) -> <span class="cls">bool</span>:
+    <span class="cmt">"""Nim-sum = 0 表示當前玩家必輸"""</span>
+    nim_sum = <span class="num">0</span>
+    <span class="kw">for</span> h <span class="kw">in</span> heaps:
+        nim_sum ^= h          <span class="cmt"># XOR 每一堆</span>
+    <span class="kw">return</span> nim_sum == <span class="num">0</span>
+
+<span class="kw">def</span> <span class="fn">nim_best_move</span>(heaps: <span class="cls">list</span>) -> <span class="cls">tuple</span>:
+    <span class="cmt">"""回傳 (堆的 index, 要取走的數量)"""</span>
+    nim_sum = <span class="num">0</span>
+    <span class="kw">for</span> h <span class="kw">in</span> heaps:
+        nim_sum ^= h
+
+    <span class="kw">if</span> nim_sum == <span class="num">0</span>:
+        <span class="cmt"># 敗局，隨便取（對手完美時必輸）</span>
+        <span class="kw">for</span> i, h <span class="kw">in</span> <span class="fn">enumerate</span>(heaps):
+            <span class="kw">if</span> h > <span class="num">0</span>: <span class="kw">return</span> (i, <span class="num">1</span>)
+
+    <span class="kw">for</span> i, h <span class="kw">in</span> <span class="fn">enumerate</span>(heaps):
+        target = h ^ nim_sum      <span class="cmt"># 取完後這堆應剩幾顆</span>
+        <span class="kw">if</span> target < h:            <span class="cmt"># 合法（只能減少）</span>
+            <span class="kw">return</span> (i, h - target) <span class="cmt"># 取走 (h - target) 顆</span>
+
+<span class="cmt"># 範例：[3, 5, 7]</span>
+<span class="cmt"># Nim-sum = 3 XOR 5 XOR 7 = 011 XOR 101 XOR 111 = 001 = 1 ≠ 0 → 先手贏</span>
+<span class="cmt"># best_move → 從第3堆(7顆)取6顆，留1顆，使 3 XOR 5 XOR 1 = 7... 不對</span>
+<span class="cmt"># 正確：target = 7 XOR 1 = 6，但 6 < 7，取走 1 顆 → [3,5,6] XOR=0 ✓</span></pre>
+      </div>
+
+      <div class="algo-h2">為什麼 XOR 可以判斷勝負？直覺解釋</div>
+      <div class="algo-p">
+        XOR 有一個關鍵性質：<code>a XOR a = 0</code>，以及<code>a XOR 0 = a</code>。
+        可以把每堆石頭的數量寫成二進位，然後對每個<strong>位元逐一看</strong>：
+        如果每個位元上 1 的個數都是偶數，XOR 就是 0（必輸位置）。
+        必勝走法就是讓某個位元上奇數個 1 變成偶數個。
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Example</span>
+        <pre><span class="cmt"># [3, 5, 6] 的二進位</span>
+<span class="cmt">#  3 = 011</span>
+<span class="cmt">#  5 = 101</span>
+<span class="cmt">#  6 = 110</span>
+<span class="cmt"># XOR = 000  ← 每個位元上 1 的個數都是偶數 → 必輸位置！</span>
+
+<span class="cmt"># [1, 2, 3] 的二進位</span>
+<span class="cmt">#  1 = 01</span>
+<span class="cmt">#  2 = 10</span>
+<span class="cmt">#  3 = 11</span>
+<span class="cmt"># XOR = 00  ← 必輸位置</span>
+
+<span class="cmt"># [1, 2, 4] 的二進位</span>
+<span class="cmt">#  1 = 001</span>
+<span class="cmt">#  2 = 010</span>
+<span class="cmt">#  4 = 100</span>
+<span class="cmt"># XOR = 111 = 7 ≠ 0 → 必贏，可從任一堆取到讓 XOR=0</span></pre>
+      </div>
+
+      <div class="algo-h2">Sprague-Grundy 定理（更一般化的理論）</div>
+      <div class="algo-p">
+        Nim 是所有組合賽局的基礎。<strong>Sprague-Grundy 定理</strong>說的是：
+        任何一個「公平賽局（impartial game）」都等價於某個大小的 Nim 單堆。
+        這個「等價大小」叫做 <strong>Grundy value（或 nimber）</strong>，記作 <code>G(s)</code>。
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">from</span> functools <span class="kw">import</span> lru_cache
+
+<span class="kw">def</span> <span class="fn">grundy</span>(n: <span class="cls">int</span>, max_take: <span class="cls">int</span>) -> <span class="cls">int</span>:
+    <span class="cmt">"""計算 Bachet's Game 各狀態的 Grundy value"""</span>
+    @lru_cache(<span class="kw">maxsize</span>=<span class="kw">None</span>)
+    <span class="kw">def</span> <span class="fn">g</span>(state):
+        <span class="kw">if</span> state == <span class="num">0</span>: <span class="kw">return</span> <span class="num">0</span>  <span class="cmt"># 終止狀態</span>
+        <span class="cmt"># mex = minimum excludant（最小未出現的非負整數）</span>
+        reachable = {<span class="fn">g</span>(state - t) <span class="kw">for</span> t <span class="kw">in</span> <span class="fn">range</span>(<span class="num">1</span>, <span class="fn">min</span>(max_take, state) + <span class="num">1</span>)}
+        mex = <span class="num">0</span>
+        <span class="kw">while</span> mex <span class="kw">in</span> reachable:
+            mex += <span class="num">1</span>
+        <span class="kw">return</span> mex
+    <span class="kw">return</span> <span class="fn">g</span>(n)
+
+<span class="cmt"># Grundy value = 0 ↔ 必輸位置（等價於 Nim 空堆）</span>
+<span class="cmt"># 多個獨立子遊戲合在一起時：G(整體) = G(子遊戲1) XOR G(子遊戲2) XOR ...</span>
+<span class="cmt"># 這就是為什麼多堆 Nim 用 XOR！</span></pre>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">🔗 所有遊戲的統一理論</div>
+        <p>
+          Bachet → Grundy value 週期為 <code>maxTake+1</code><br>
+          21點報數 → 同上，只是換了外殼<br>
+          Nim 多堆 → 每堆 Grundy value 即堆的大小，整體 XOR<br>
+          Chomp → Grundy value 未知（開放問題）<br><br>
+          <strong>Sprague-Grundy 是這些遊戲背後共同的數學語言。</strong>
+          這個定理讓你可以把任意組合賽局都轉換成 Nim 來解，
+          是組合賽局理論最核心的結果。
+        </p>
+      </div>
     </div>
-    <div class="input-group">
-      <label>每次最多可取</label>
-      <select id="ai-max-take">
-        <option value="3" selected>最多 3 顆（經典）</option>
-        <option value="4">最多 4 顆</option>
-        <option value="5">最多 5 顆</option>
-      </select>
+
+    <!-- Wythoff Section -->
+    <div class="algo-section" id="algo-wythoff">
+      <div class="complexity-row">
+        <span class="badge badge-type">Golden Ratio</span>
+        <span class="badge badge-type">Beatty's Theorem</span>
+        <span class="badge badge-type">O(1) Formula</span>
+      </div>
+
+      <div class="algo-h2">Wythoff's Game 規則</div>
+      <div class="algo-p">
+        有兩堆石頭，兩人輪流，每次可以：
+        從<strong>任一堆</strong>取任意數量（至少1顆），
+        或從<strong>兩堆同時</strong>取<strong>相同數量</strong>。
+        取走最後一顆石頭的人贏（Standard 規則）。
+      </div>
+
+      <div class="algo-h2">必敗位置（Cold positions）</div>
+      <div class="algo-p">
+        Wythoff's Game 的必敗位置有一個<strong>令人驚訝的規律</strong>，
+        直接和黃金比例 <code>φ = (1+√5)/2 ≈ 1.618</code> 有關：
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">φ Wythoff 定理（1907年）</div>
+        <p>
+          所有必敗位置 <code>(a, b)</code>（<code>a ≤ b</code>）都是以下形式：<br><br>
+          <strong><code>aₙ = ⌊n·φ⌋，bₙ = ⌊n·φ²⌋ = aₙ + n</code></strong><br><br>
+          其中 <code>φ = (1+√5)/2</code>，<code>φ² = φ+1 ≈ 2.618</code>，n = 0, 1, 2, 3, ...<br><br>
+          前幾個必敗位置：(0,0), (1,2), (3,5), (4,7), (6,10), (8,13), ...
+        </p>
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">import</span> math
+
+PHI = (<span class="num">1</span> + math.<span class="fn">sqrt</span>(<span class="num">5</span>)) / <span class="num">2</span>   <span class="cmt"># ≈ 1.6180339887</span>
+
+<span class="kw">def</span> <span class="fn">wythoff_is_losing</span>(a: <span class="cls">int</span>, b: <span class="cls">int</span>) -> <span class="cls">bool</span>:
+    <span class="cmt">"""判斷 (a, b) 是否為必輸位置（a ≤ b）"""</span>
+    <span class="kw">if</span> a > b: a, b = b, a     <span class="cmt"># 確保 a ≤ b</span>
+    n = b - a                  <span class="cmt"># n = b - a</span>
+    <span class="kw">return</span> <span class="fn">int</span>(n * PHI) == a   <span class="cmt"># ⌊n·φ⌋ == a 表示必輸</span>
+
+<span class="kw">def</span> <span class="fn">wythoff_best_move</span>(a: <span class="cls">int</span>, b: <span class="cls">int</span>):
+    <span class="cmt">"""找必贏走法，回傳操作後的 (a', b')"""</span>
+    <span class="kw">if</span> <span class="fn">wythoff_is_losing</span>(a, b):
+        <span class="kw">return</span> <span class="kw">None</span>  <span class="cmt"># 已在必輸位置，沒有好走法</span>
+
+    <span class="cmt"># 嘗試所有合法移動找到必輸位置</span>
+    <span class="kw">for</span> na <span class="kw">in</span> <span class="fn">range</span>(a + <span class="num">1</span>):       <span class="cmt"># 從堆A取石頭</span>
+        <span class="kw">if</span> <span class="fn">wythoff_is_losing</span>(na, b): <span class="kw">return</span> (na, b)
+    <span class="kw">for</span> nb <span class="kw">in</span> <span class="fn">range</span>(b + <span class="num">1</span>):       <span class="cmt"># 從堆B取石頭</span>
+        <span class="kw">if</span> <span class="fn">wythoff_is_losing</span>(a, nb): <span class="kw">return</span> (a, nb)
+    <span class="kw">for</span> d <span class="kw">in</span> <span class="fn">range</span>(<span class="num">1</span>, <span class="fn">min</span>(a, b) + <span class="num">1</span>):  <span class="cmt"># 兩堆各取 d 顆</span>
+        <span class="kw">if</span> <span class="fn">wythoff_is_losing</span>(a - d, b - d): <span class="kw">return</span> (a - d, b - d)
+
+<span class="cmt"># 複雜度：O(max(a,b)) 掃描找走法，O(1) 判斷每個位置</span></pre>
+      </div>
+
+      <div class="algo-h2">黃金比例為什麼出現在這裡？</div>
+      <div class="algo-p">
+        關鍵是 <strong>Beatty 定理</strong>：對於無理數 <code>r</code> 和 <code>s</code>，
+        若 <code>1/r + 1/s = 1</code>，則 <code>{⌊n·r⌋}</code> 和 <code>{⌊n·s⌋}</code>
+        恰好把所有正整數<strong>不重複地分成兩組</strong>。
+        由於 <code>1/φ + 1/φ² = 1</code>，序列 <code>⌊n·φ⌋</code> 和 <code>⌊n·φ²⌋</code>
+        就剛好把所有非負整數配成對，完美對應了 Wythoff 的必敗位置。
+      </div>
+
+      <div class="code-block">
+        <span class="lang-tag">Analysis</span>
+        <pre><span class="cmt"># Beatty 定理驗證</span>
+<span class="cmt"># φ ≈ 1.618,  φ² ≈ 2.618</span>
+<span class="cmt"># 1/φ + 1/φ² = 0.618 + 0.382 = 1 ✓</span>
+
+<span class="cmt"># ⌊n·φ⌋  序列 (n=1,2,...): 1, 3, 4, 6, 8, 9, 11, 12, 14, ...</span>
+<span class="cmt"># ⌊n·φ²⌋ 序列 (n=1,2,...): 2, 5, 7, 10, 13, 15, 18, 20, 23, ...</span>
+<span class="cmt"># 兩序列合起來 = 所有正整數，且不重複 ✓</span>
+
+<span class="cmt"># 必敗位置：</span>
+<span class="cmt"># n=1: (1, 2)  → 1 XOR 2 = 3，但這是 Wythoff 不是 Nim</span>
+<span class="cmt"># n=2: (3, 5)</span>
+<span class="cmt"># n=3: (4, 7)</span>
+<span class="cmt"># n=4: (6, 10)</span></pre>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">✨ 為什麼 Wythoff 比 Nim 更難？</div>
+        <p>
+          Nim 多堆的必勝策略來自<strong>位元運算</strong>，可以直接計算。<br>
+          Wythoff 的必勝策略涉及<strong>無理數</strong>（黃金比例），
+          雖然也有 O(1) 公式，但背後的數學遠比 XOR 深。<br><br>
+          從演算法角度看：兩者都是 O(1) 判斷必敗位置，
+          但 Wythoff 在「找最佳走法」時需要 O(max(a,b)) 掃描，
+          而 Nim 可以用 XOR 直接算出最佳走法，是 O(堆數)。
+        </p>
+      </div>
     </div>
-    <div class="input-group">
-      <label>AI 難度</label>
-      <select id="ai-difficulty">
-        <option value="easy">😊 簡單 — AI 有時會犯錯</option>
-        <option value="hard" selected>😈 困難 — AI 使用最優策略</option>
-      </select>
+
+    <!-- Minimax Section -->
+    <div class="algo-section" id="algo-minimax">
+      <div class="complexity-row">
+        <span class="badge badge-type">Minimax</span>
+        <span class="badge badge-type">Memoization</span>
+        <span class="badge badge-type">Alpha-Beta Pruning</span>
+      </div>
+
+      <div class="algo-h2">Chomp 為什麼要用 Minimax？</div>
+      <div class="algo-p">
+        Chomp 的狀態空間太大，沒有已知的 O(1) 公式（這是一個<strong>開放數學問題</strong>！）。
+        我們必須用搜尋樹（博弈樹）枚舉所有可能，找出必贏的走法。
+        這和西洋棋程式（如 Stockfish）的核心邏輯完全相同。
+      </div>
+
+      <div class="algo-h2">Minimax 遞迴定義</div>
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">from</span> functools <span class="kw">import</span> lru_cache
+
+<span class="kw">def</span> <span class="fn">chomp_solver</span>(rows: <span class="cls">int</span>, cols: <span class="cls">int</span>):
+    <span class="cmt"># 棋盤用 frozenset 表示存活的格子 (r, c)</span>
+    <span class="cmt"># (0,0) 是毒格（左下角）</span>
+
+    @lru_cache(<span class="kw">maxsize</span>=<span class="kw">None</span>)
+    <span class="kw">def</span> <span class="fn">is_losing</span>(board: frozenset) -> <span class="cls">bool</span>:
+        <span class="cmt">"""當前玩家是否在必輸位置"""</span>
+        <span class="cmt"># 只剩毒格 → 當前玩家必須吃它 → 必輸</span>
+        non_poison = {(r,c) <span class="kw">for</span> r,c <span class="kw">in</span> board <span class="kw">if</span> (r,c) != (<span class="num">0</span>,<span class="num">0</span>)}
+        <span class="kw">if not</span> non_poison:
+            <span class="kw">return</span> <span class="kw">True</span>
+
+        <span class="cmt"># 嘗試所有合法移動：若能讓對手陷入必輸 → 我必贏</span>
+        <span class="kw">for</span> (r, c) <span class="kw">in</span> non_poison:
+            eaten = frozenset(
+                (rr, cc) <span class="kw">for</span> rr, cc <span class="kw">in</span> board
+                <span class="kw">if not</span> (rr >= r <span class="kw">and</span> cc >= c)
+            )
+            <span class="kw">if</span> <span class="fn">is_losing</span>(eaten):
+                <span class="kw">return</span> <span class="kw">False</span>  <span class="cmt"># 找到必贏走法 → 當前不是輸</span>
+
+        <span class="kw">return</span> <span class="kw">True</span>  <span class="cmt"># 所有走法都讓對手贏 → 我必輸</span>
+
+    initial = frozenset(
+        (r, c)
+        <span class="kw">for</span> r <span class="kw">in</span> <span class="fn">range</span>(rows)
+        <span class="kw">for</span> c <span class="kw">in</span> <span class="fn">range</span>(cols)
+    )
+    <span class="kw">return</span> <span class="fn">is_losing</span>(initial)</pre>
+      </div>
+
+      <div class="algo-h2">Minimax 搜尋樹視覺化</div>
+      <div class="algo-p">以 2×2 Chomp 為例（簡化展示）：</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:18px;margin:14px 0;overflow-x:auto;">
+        <div style="font-family:'Fira Code',monospace;font-size:12px;line-height:1.8;color:var(--text-dim);">
+<pre style="margin:0;background:none;padding:0">
+<span style="color:var(--text)">          [☠️🟫]  ← 初始 2×2（先手必贏）</span>
+<span style="color:var(--text)">          [🟫🟫]</span>
+               │
+     ┌─────────┼─────────┐
+     ▼         ▼         ▼
+<span style="color:var(--accent3)"> 吃(0,1)   吃(1,0)   吃(1,1)
+ [☠️🟫]    [☠️  ]    [☠️  ]
+ [      ]  [🟫  ]    [    ]</span>
+<span style="color:var(--accent3)">   WIN       WIN</span>      <span style="color:var(--accent2)">LOSE←對手只剩毒格
+                       對手必吃毒格</span>
+
+<span style="color:var(--accent5)">→ 先手選擇吃(1,1)，對手只剩☠️，先手必贏</span>
+</pre>
+        </div>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">🔬 記憶化（Memoization）的關鍵</div>
+        <p>
+          不同的走法序列可能產生<strong>相同的棋盤狀態</strong>。
+          如果不做記憶化，同一個狀態會被重複計算指數次。
+          用 <code>dict</code> 或 <code>@lru_cache</code> 把已算過的狀態存起來，
+          可以讓時間從 <strong>O(moves!)</strong> 降到 <strong>O(唯一狀態數 × 合法移動數)</strong>。
+        </p>
+      </div>
+
+      <div class="algo-h2">Alpha-Beta Pruning（進階）</div>
+      <div class="algo-p">
+        在大棋盤上，狀態空間仍然太大。Alpha-Beta Pruning 是 Minimax 的優化版本，
+        透過剪掉「不可能被選到的分支」，在<strong>不影響正確性</strong>的情況下大幅加速。
+        這是現代西洋棋程式、圍棋程式的基礎之一。
+      </div>
+      <div class="code-block">
+        <span class="lang-tag">Python</span>
+        <pre><span class="kw">def</span> <span class="fn">minimax</span>(state, is_maximizing, alpha, beta):
+    <span class="kw">if</span> <span class="fn">is_terminal</span>(state):
+        <span class="kw">return</span> <span class="fn">evaluate</span>(state)
+
+    <span class="kw">if</span> is_maximizing:
+        value = -<span class="fn">float</span>(<span class="str">'inf'</span>)
+        <span class="kw">for</span> move <span class="kw">in</span> <span class="fn">get_moves</span>(state):
+            value = <span class="fn">max</span>(value, <span class="fn">minimax</span>(<span class="fn">apply</span>(state, move), <span class="kw">False</span>, alpha, beta))
+            alpha = <span class="fn">max</span>(alpha, value)
+            <span class="kw">if</span> beta <= alpha: <span class="kw">break</span>  <span class="cmt"># β 剪枝</span>
+        <span class="kw">return</span> value
+    <span class="kw">else</span>:
+        value = <span class="fn">float</span>(<span class="str">'inf'</span>)
+        <span class="kw">for</span> move <span class="kw">in</span> <span class="fn">get_moves</span>(state):
+            value = <span class="fn">min</span>(value, <span class="fn">minimax</span>(<span class="fn">apply</span>(state, move), <span class="kw">True</span>, alpha, beta))
+            beta = <span class="fn">min</span>(beta, value)
+            <span class="kw">if</span> beta <= alpha: <span class="kw">break</span>  <span class="cmt"># α 剪枝</span>
+        <span class="kw">return</span> value</pre>
+      </div>
     </div>
-    <div class="input-group">
-      <label>先手</label>
-      <select id="ai-first">
-        <option value="player">玩家先手</option>
-        <option value="ai">AI 先手</option>
-        <option value="random">隨機決定</option>
-      </select>
+
+    <!-- Complexity Section -->
+    <div class="algo-section" id="algo-complexity">
+      <div class="algo-h2">五個遊戲的複雜度比較</div>
+      <div style="overflow-x:auto;margin:14px 0;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;letter-spacing:0.08em;">遊戲</th>
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;">演算法</th>
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;">判斷勝負</th>
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;">最佳走法</th>
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;">空間</th>
+              <th style="padding:9px 12px;text-align:left;color:var(--text-dim);font-weight:400;font-family:'Orbitron',monospace;font-size:10px;">核心數學</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 12px;color:var(--accent);">🪨 Bachet</td>
+              <td style="padding:9px 12px;">DP → 公式</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(1)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(1)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;">O(1)</td>
+              <td style="padding:9px 12px;font-size:11px;color:var(--text-dim);">模運算</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 12px;color:var(--accent4);">🔢 21點</td>
+              <td style="padding:9px 12px;">DP → 公式</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(1)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(1)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;">O(1)</td>
+              <td style="padding:9px 12px;font-size:11px;color:var(--text-dim);">模運算（同Bachet）</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 12px;color:var(--accent3);">⚡ Nim多堆</td>
+              <td style="padding:9px 12px;">Bitwise XOR</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(k)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(k·log N)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;">O(1)</td>
+              <td style="padding:9px 12px;font-size:11px;color:var(--text-dim);">位元運算 / Grundy</td>
+            </tr>
+            <tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:9px 12px;color:var(--accent5);">φ Wythoff</td>
+              <td style="padding:9px 12px;">黃金比例公式</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent3);">O(1)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent4);">O(max(a,b))</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;">O(1)</td>
+              <td style="padding:9px 12px;font-size:11px;color:var(--text-dim);">黃金比例 / Beatty</td>
+            </tr>
+            <tr>
+              <td style="padding:9px 12px;color:var(--accent2);">🍫 Chomp</td>
+              <td style="padding:9px 12px;">Minimax + Memo</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent4);">O(S·MN)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;color:var(--accent4);">O(S·MN)</td>
+              <td style="padding:9px 12px;font-family:'Fira Code',monospace;">O(S)</td>
+              <td style="padding:9px 12px;font-size:11px;color:var(--accent2);">未知 ❓ 開放問題</td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="font-size:11px;color:var(--text-dim);margin-top:8px;">k = 堆數，N = 最大堆大小，S = Chomp 唯一棋盤狀態數</div>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">🤯 Chomp 的特殊地位</div>
+        <p>
+          Chomp 在數學上<strong>已被證明先手必勝</strong>（用 Zermelo's Theorem），
+          但目前<strong>沒有人知道具體策略是什麼</strong>（除了少數特殊棋盤大小）。
+          這是組合賽局理論（Combinatorial Game Theory）中的著名開放問題之一。
+          這也是為什麼「困難」電腦在大棋盤上可能表現不如預期——
+          這個問題連數學家也還沒完全解決！
+        </p>
+      </div>
+
+      <div class="algo-h2">狀態空間比較：為什麼 Chomp 這麼難？</div>
+      <div class="code-block">
+        <span class="lang-tag">Analysis</span>
+        <pre><span class="cmt"># Bachet N=21, M=3</span>
+<span class="cmt"># 狀態空間：只需要「剩幾顆」→ 21 個狀態</span>
+states_bachet = <span class="num">21</span>   <span class="cmt"># O(N)</span>
+
+<span class="cmt"># Chomp 5×4 棋盤</span>
+<span class="cmt"># 每個格子可以是「存在」或「被吃」，但有合法限制</span>
+<span class="cmt"># （右上方被吃代表左下方也被吃，是一個「Young diagram」結構）</span>
+<span class="cmt"># 合法狀態數大約是 Catalan 數量級</span>
+states_chomp_5x4 ≈ <span class="num">4096</span>  <span class="cmt"># 實際更少因有限制，但仍遠大於 Bachet</span>
+
+<span class="cmt"># 對比：如果是 7×5 棋盤</span>
+states_chomp_7x5 ≈ <span class="num">數萬</span>  <span class="cmt"># Minimax 仍可行，但純暴力不行</span></pre>
+      </div>
     </div>
+
+    <!-- LeetCode Section -->
+    <div class="algo-section" id="algo-leetcode">
+      <div class="algo-h2">Nim 多堆 / XOR / Grundy 相關題目</div>
+      <div class="algo-p">這類題目核心是理解 XOR 在賽局中的意義，以及 Grundy value 的計算。</div>
+      <div class="lc-list">
+        <a class="lc-item" href="https://leetcode.com/problems/nim-game/" target="_blank">
+          <span class="lc-num">292</span><span class="lc-title">Nim Game</span>
+          <span class="lc-diff lc-easy">Easy</span>
+          <span class="lc-rel">單堆 Nim 入門，n%4==0 必輸</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/stone-game-iv/" target="_blank">
+          <span class="lc-num">1510</span><span class="lc-title">Stone Game IV</span>
+          <span class="lc-diff lc-hard">Hard</span>
+          <span class="lc-rel">Grundy value DP，每次取完全平方數</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/chalkboard-xor-game/" target="_blank">
+          <span class="lc-num">810</span><span class="lc-title">Chalkboard XOR Game</span>
+          <span class="lc-diff lc-hard">Hard</span>
+          <span class="lc-rel">直接用 XOR 判斷勝負</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/game-of-nim/" target="_blank">
+          <span class="lc-num">2005</span><span class="lc-title">Game of Nim (競賽題)</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">標準多堆 Nim，XOR 解</span>
+        </a>
+      </div>
+
+      <div class="algo-h2">Bachet / 21點報數 相關題目</div>
+      <div class="algo-p">這類題目的核心都是「找出必敗狀態規律」，通常 DP 推導後有 O(1) 數學解。</div>
+      <div class="lc-list">
+        <a class="lc-item" href="https://leetcode.com/problems/divisor-game/" target="_blank">
+          <span class="lc-num">1025</span><span class="lc-title">Divisor Game</span>
+          <span class="lc-diff lc-easy">Easy</span>
+          <span class="lc-rel">DP → 偶數必贏的數學規律</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/can-i-win/" target="_blank">
+          <span class="lc-num">464</span><span class="lc-title">Can I Win</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">Bitmask DP，Bachet 的變形</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/stone-game/" target="_blank">
+          <span class="lc-num">877</span><span class="lc-title">Stone Game</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">DP + 數學，先手必贏的證明</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/stone-game-ii/" target="_blank">
+          <span class="lc-num">1140</span><span class="lc-title">Stone Game II</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">區間 DP，動態改變 M</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/stone-game-iii/" target="_blank">
+          <span class="lc-num">1406</span><span class="lc-title">Stone Game III</span>
+          <span class="lc-diff lc-hard">Hard</span>
+          <span class="lc-rel">線性 DP，每次取 1~3 堆</span>
+        </a>
+      </div>
+
+      <div class="algo-h2">Chomp / Minimax 相關題目</div>
+      <div class="algo-p">這類題目需要博弈樹搜尋，通常搭配記憶化或 Alpha-Beta Pruning。</div>
+      <div class="lc-list">
+        <a class="lc-item" href="https://leetcode.com/problems/predict-the-winner/" target="_blank">
+          <span class="lc-num">486</span><span class="lc-title">Predict the Winner</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">Minimax 入門題，區間 DP</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/guess-number-higher-or-lower-ii/" target="_blank">
+          <span class="lc-num">375</span><span class="lc-title">Guess Number Higher or Lower II</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">Minimax + 區間 DP</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/cat-and-mouse/" target="_blank">
+          <span class="lc-num">913</span><span class="lc-title">Cat and Mouse</span>
+          <span class="lc-diff lc-hard">Hard</span>
+          <span class="lc-rel">圖上博弈，Minimax + BFS</span>
+        </a>
+        <a class="lc-item" href="https://leetcode.com/problems/flip-game-ii/" target="_blank">
+          <span class="lc-num">294</span><span class="lc-title">Flip Game II</span>
+          <span class="lc-diff lc-medium">Medium</span>
+          <span class="lc-rel">Backtracking + Memo + Grundy value</span>
+        </a>
+      </div>
+
+      <div class="insight-box">
+        <div class="insight-label">📚 建議學習路徑</div>
+        <p>
+          <strong>第一階段（DP規律）：</strong> 先玩 Bachet → 292 → 1025 → 877<br>
+          <strong>第二階段（XOR位元）：</strong> 先玩 Nim多堆 → 292變形 → 810 → 1510<br>
+          <strong>第三階段（Grundy值）：</strong> 294 → 464 → 理解 mex 概念<br>
+          <strong>第四階段（Minimax）：</strong> 先玩 Chomp → 486 → 375 → 913<br>
+          <strong>第五階段（數學結合）：</strong> 先玩 Wythoff → 1140 → 1406<br><br>
+          每個階段都建議先玩對應的遊戲，感受必敗位置的直覺，
+          再看 LeetCode 題目，理解速度會快很多。
+        </p>
+      </div>
+    </div>
+
+  </div><!-- /algo-content -->
+
+  <div class="btn-row" style="padding:0 28px 28px">
+    <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回主選單</button>
+  </div>
+</div>
+
+<!-- ===== BACHET SETUP ===== -->
+<div class="panel" id="panel-bachet-setup">
+  <div class="panel-title">🪨 Bachet's Game 設定</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="btab-cpu" onclick="setBTab('cpu')">🖥️ 單人對戰（電腦）</div>
+    <div class="mode-tab" id="btab-create" onclick="setBTab('create')">🏠 開房間</div>
+    <div class="mode-tab" id="btab-join" onclick="setBTab('join')">🔗 加入房間</div>
+  </div>
+  <div id="bmode-cpu">
+    <div class="input-group"><label>你的名稱</label><input id="b-cpu-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>初始石頭數</label>
+      <select id="b-cpu-stones"><option value="15">15顆</option><option value="21" selected>21顆（經典）</option><option value="30">30顆</option><option value="50">50顆</option></select></div>
+    <div class="input-group"><label>每次最多取</label>
+      <select id="b-cpu-max"><option value="3" selected>最多3顆（經典）</option><option value="4">最多4顆</option><option value="5">最多5顆</option></select></div>
+    <div class="input-group"><label>電腦難度</label>
+      <select id="b-cpu-diff"><option value="easy">😊 簡單（偶爾隨機走）</option><option value="hard" selected>😈 困難（最優演算法）</option></select></div>
+    <div class="input-group"><label>先手</label>
+      <select id="b-cpu-first"><option value="player">玩家先手</option><option value="cpu">電腦先手</option><option value="random">隨機</option></select></div>
     <div class="btn-row">
-      <button class="btn btn-primary btn-lg" onclick="beginAIGame()">🚀 開始遊戲</button>
+      <button class="btn btn-primary btn-lg" onclick="bachetBeginCpu()">🚀 開始</button>
       <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
     </div>
   </div>
-
-  <!-- CREATE ROOM -->
-  <div class="panel" id="panel-create">
-    <div class="panel-title">建立房間</div>
-    <div class="step active" id="create-step1">
-      <div class="input-group">
-        <label>你的名稱</label>
-        <input type="text" id="host-name" placeholder="房主暱稱" maxlength="16">
-      </div>
-      <div class="input-group">
-        <label>初始石頭數量</label>
-        <select id="room-stones">
-          <option value="15">15 顆</option>
-          <option value="21" selected>21 顆（經典）</option>
-          <option value="30">30 顆</option>
-          <option value="50">50 顆</option>
-        </select>
-      </div>
-      <div class="input-group">
-        <label>每次最多可取</label>
-        <select id="room-max-take">
-          <option value="3" selected>最多 3 顆（經典）</option>
-          <option value="4">最多 4 顆</option>
-          <option value="5">最多 5 顆</option>
-        </select>
-      </div>
-      <div class="input-group">
-        <label>先手</label>
-        <select id="room-first">
-          <option value="host">房主先手</option>
-          <option value="guest">訪客先手</option>
-          <option value="random">隨機決定</option>
-        </select>
-      </div>
+  <div id="bmode-create" style="display:none">
+    <div class="step active" id="bcreate-s1">
+      <div class="input-group"><label>你的名稱</label><input id="b-host-name" placeholder="房主" maxlength="16"></div>
+      <div class="input-group"><label>初始石頭數</label>
+        <select id="b-room-stones"><option value="15">15顆</option><option value="21" selected>21顆</option><option value="30">30顆</option><option value="50">50顆</option></select></div>
+      <div class="input-group"><label>每次最多取</label>
+        <select id="b-room-max"><option value="3" selected>最多3顆</option><option value="4">最多4顆</option><option value="5">最多5顆</option></select></div>
+      <div class="input-group"><label>先手</label>
+        <select id="b-room-first"><option value="host">房主先手</option><option value="guest">訪客先手</option><option value="random">隨機</option></select></div>
       <div class="btn-row">
-        <button class="btn btn-primary" onclick="createRoom()">🏠 建立房間</button>
+        <button class="btn btn-primary" onclick="bachetCreateRoom()">🏠 建立</button>
         <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
       </div>
     </div>
-    <div class="step" id="create-step2">
-      <div class="room-code-box">
-        <div class="code-label">房間代碼</div>
-        <div class="code-val" id="display-room-code">----</div>
-        <div class="code-hint">把這個代碼分享給你的朋友</div>
+    <div class="step" id="bcreate-s2">
+      <div class="room-code-box"><div class="code-label">房間代碼</div><div class="code-val" id="b-room-code-display">----</div><div class="code-hint">分享給朋友</div></div>
+      <div class="status-bar" style="margin-top:8px"><span class="spinner"></span><span class="status-text">等待對手加入…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="copyCode('b-room-code-display')">📋 複製</button>
+        <button class="btn btn-sm" onclick="bachetCancelRoom()">❌ 取消</button>
       </div>
-      <div class="status-bar" style="margin-top:8px">
-        <span class="spinner"></span>
-        <span class="status-text">等待對手加入…</span>
-      </div>
-      <button class="btn btn-outline btn-sm mt8" onclick="copyRoomCode()">📋 複製代碼</button>
-      <hr class="divider">
-      <button class="btn" onclick="cancelRoom()">❌ 取消房間</button>
     </div>
   </div>
-
-  <!-- JOIN ROOM -->
-  <div class="panel" id="panel-join">
-    <div class="panel-title">加入房間</div>
-    <div class="input-group">
-      <label>你的名稱</label>
-      <input type="text" id="guest-name" placeholder="玩家暱稱" maxlength="16">
-    </div>
-    <div class="input-group">
-      <label>房間代碼</label>
-      <input type="text" id="join-code" placeholder="輸入 4 位代碼" maxlength="4"
-        style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:22px;"
-        oninput="this.value=this.value.toUpperCase()">
-    </div>
+  <div id="bmode-join" style="display:none">
+    <div class="input-group"><label>你的名稱</label><input id="b-guest-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>房間代碼</label>
+      <input id="b-join-code" placeholder="XXXX" maxlength="4" style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:20px;" oninput="this.value=this.value.toUpperCase()"></div>
+    <div id="b-join-err" style="color:var(--accent2);font-size:12px;display:none;margin-bottom:8px;"></div>
     <div class="btn-row">
-      <button class="btn btn-primary" onclick="joinRoom()">🔗 加入遊戲</button>
-      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
-    </div>
-    <div id="join-error" class="text-dim mt8" style="color:var(--accent2);display:none"></div>
-  </div>
-
-  <!-- GAME -->
-  <div class="panel" id="panel-game">
-    <div class="panel-title" id="game-mode-label">遊戲中</div>
-
-    <div class="players-row">
-      <div class="player-tag" id="p1-tag">
-        <div class="p-name" id="p1-name">—</div>
-        <div class="p-label">玩家 1</div>
-      </div>
-      <div style="display:flex;align-items:center;color:var(--text-dim);font-size:12px;font-family:'Orbitron',monospace;">VS</div>
-      <div class="player-tag" id="p2-tag">
-        <div class="p-name" id="p2-name">—</div>
-        <div class="p-label">玩家 2</div>
-      </div>
-    </div>
-
-    <div class="status-bar" id="status-bar">
-      <div class="status-indicator" id="status-dot"></div>
-      <div style="flex:1">
-        <div class="status-text" id="status-text">準備中</div>
-        <div class="status-sub"  id="status-sub"></div>
-      </div>
-    </div>
-
-    <div id="stones-area">
-      <div class="stones-display" id="stones-display"></div>
-      <div class="stones-count" id="stones-count">0</div>
-      <div class="stones-label">顆石頭剩餘</div>
-    </div>
-
-    <!-- FIX: last-stone warning shown when only 1 stone remains and it's opponent's forced move -->
-    <div class="last-stone-warning" id="last-stone-warning">
-      ⚠️ 只剩 1 顆！對手必須取走它，你即將獲勝！
-    </div>
-
-    <div class="take-btns" id="take-btns"></div>
-
-    <div class="game-log" id="game-log"></div>
-
-    <div class="btn-row" style="margin-top:16px">
-      <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
-    </div>
-  </div>
-
-  <!-- RULES -->
-  <div class="panel" id="panel-rules">
-    <div class="panel-title">遊戲規則</div>
-    <div class="rules-block">
-      <strong>Bachet's Game（取石遊戲）</strong><br>
-      <ul>
-        <li>桌上有 N 顆石頭，兩位玩家輪流取石頭。</li>
-        <li>每次至少取 <strong>1 顆</strong>，最多取 <strong>M 顆</strong>（例如 M=3）。</li>
-        <li><strong>取走最後一顆石頭的人「輸」</strong>（此遊戲採 Misère 規則）。</li>
-      </ul>
-      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
-      <strong>必勝策略</strong><br>
-      設 K = M + 1（例如 M=3 時 K=4）：
-      <ul>
-        <li>若剩餘石頭數 mod K = 1，<strong>當前玩家必輸</strong>（已陷入敗局）。</li>
-        <li>否則，取走石頭讓剩餘數 mod K = 1，則<strong>對手必輸</strong>。</li>
-        <li>特例：當只剩 1 顆時，當前玩家被迫取走，即輸。</li>
-      </ul>
-      <em style="font-size:12px">Bachet's Game 由 17 世紀法國數學家 Claude-Gaspard Bachet de Méziriac 命名。</em>
-    </div>
-    <div class="btn-row">
+      <button class="btn btn-primary" onclick="bachetJoinRoom()">🔗 加入</button>
       <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
     </div>
   </div>
-
 </div>
 
-<!-- RESULT OVERLAY -->
+<!-- ===== COUNT21 SETUP ===== -->
+<div class="panel" id="panel-count21-setup">
+  <div class="panel-title">🔢 21點報數 設定</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="ctab-cpu" onclick="setCTab('cpu')">🖥️ 單人對戰（電腦）</div>
+    <div class="mode-tab" id="ctab-create" onclick="setCTab('create')">🏠 開房間</div>
+    <div class="mode-tab" id="ctab-join" onclick="setCTab('join')">🔗 加入房間</div>
+  </div>
+  <div id="cmode-cpu">
+    <div class="input-group"><label>你的名稱</label><input id="c-cpu-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>目標數字</label>
+      <select id="c-target"><option value="21" selected>21（經典）</option><option value="31">31</option><option value="50">50</option></select></div>
+    <div class="input-group"><label>每次最多報幾個</label>
+      <select id="c-max-say"><option value="2" selected>最多2個（經典）</option><option value="3">最多3個</option></select></div>
+    <div class="input-group"><label>電腦難度</label>
+      <select id="c-cpu-diff"><option value="easy">😊 簡單（偶爾隨機走）</option><option value="hard" selected>😈 困難（最優演算法）</option></select></div>
+    <div class="input-group"><label>先手</label>
+      <select id="c-cpu-first"><option value="player">玩家先手</option><option value="cpu">電腦先手</option><option value="random">隨機</option></select></div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="count21BeginCpu()">🚀 開始</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+  <div id="cmode-create" style="display:none">
+    <div class="step active" id="ccreate-s1">
+      <div class="input-group"><label>你的名稱</label><input id="c-host-name" placeholder="房主" maxlength="16"></div>
+      <div class="input-group"><label>目標數字</label>
+        <select id="c-room-target"><option value="21" selected>21</option><option value="31">31</option><option value="50">50</option></select></div>
+      <div class="input-group"><label>每次最多報幾個</label>
+        <select id="c-room-max"><option value="2" selected>最多2個</option><option value="3">最多3個</option></select></div>
+      <div class="input-group"><label>先手</label>
+        <select id="c-room-first"><option value="host">房主先手</option><option value="guest">訪客先手</option><option value="random">隨機</option></select></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="count21CreateRoom()">🏠 建立</button>
+        <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+      </div>
+    </div>
+    <div class="step" id="ccreate-s2">
+      <div class="room-code-box"><div class="code-label">房間代碼</div><div class="code-val" id="c-room-code-display">----</div><div class="code-hint">分享給朋友</div></div>
+      <div class="status-bar" style="margin-top:8px"><span class="spinner"></span><span class="status-text">等待對手加入…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="copyCode('c-room-code-display')">📋 複製</button>
+        <button class="btn btn-sm" onclick="count21CancelRoom()">❌ 取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="cmode-join" style="display:none">
+    <div class="input-group"><label>你的名稱</label><input id="c-guest-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>房間代碼</label>
+      <input id="c-join-code" placeholder="XXXX" maxlength="4" style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:20px;" oninput="this.value=this.value.toUpperCase()"></div>
+    <div id="c-join-err" style="color:var(--accent2);font-size:12px;display:none;margin-bottom:8px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="count21JoinRoom()">🔗 加入</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== CHOMP SETUP ===== -->
+<div class="panel" id="panel-chomp-setup">
+  <div class="panel-title">🍫 Chomp 設定</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="chtab-cpu" onclick="setChTab('cpu')">🖥️ 單人對戰（電腦）</div>
+    <div class="mode-tab" id="chtab-create" onclick="setChTab('create')">🏠 開房間</div>
+    <div class="mode-tab" id="chtab-join" onclick="setChTab('join')">🔗 加入房間</div>
+  </div>
+  <div id="chmode-cpu">
+    <div class="input-group"><label>你的名稱</label><input id="ch-cpu-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>棋盤大小</label>
+      <select id="ch-size">
+        <option value="3x3">3×3（入門）</option><option value="4x4">4×4</option>
+        <option value="5x4" selected>5×4（經典）</option><option value="6x5">6×5</option><option value="7x5">7×5</option>
+      </select></div>
+    <div class="input-group"><label>電腦難度</label>
+      <select id="ch-cpu-diff"><option value="easy">😊 簡單（偶爾隨機走）</option><option value="hard" selected>😈 困難（最優演算法）</option></select></div>
+    <div class="input-group"><label>先手</label>
+      <select id="ch-cpu-first"><option value="player">玩家先手</option><option value="cpu">電腦先手</option><option value="random">隨機</option></select></div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="chompBeginCpu()">🚀 開始</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+  <div id="chmode-create" style="display:none">
+    <div class="step active" id="chcreate-s1">
+      <div class="input-group"><label>你的名稱</label><input id="ch-host-name" placeholder="房主" maxlength="16"></div>
+      <div class="input-group"><label>棋盤大小</label>
+        <select id="ch-room-size">
+          <option value="3x3">3×3</option><option value="4x4">4×4</option>
+          <option value="5x4" selected>5×4</option><option value="6x5">6×5</option><option value="7x5">7×5</option>
+        </select></div>
+      <div class="input-group"><label>先手</label>
+        <select id="ch-room-first"><option value="host">房主先手</option><option value="guest">訪客先手</option><option value="random">隨機</option></select></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="chompCreateRoom()">🏠 建立</button>
+        <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+      </div>
+    </div>
+    <div class="step" id="chcreate-s2">
+      <div class="room-code-box"><div class="code-label">房間代碼</div><div class="code-val" id="ch-room-code-display">----</div><div class="code-hint">分享給朋友</div></div>
+      <div class="status-bar" style="margin-top:8px"><span class="spinner"></span><span class="status-text">等待對手加入…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="copyCode('ch-room-code-display')">📋 複製</button>
+        <button class="btn btn-sm" onclick="chompCancelRoom()">❌ 取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="chmode-join" style="display:none">
+    <div class="input-group"><label>你的名稱</label><input id="ch-guest-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>房間代碼</label>
+      <input id="ch-join-code" placeholder="XXXX" maxlength="4" style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:20px;" oninput="this.value=this.value.toUpperCase()"></div>
+    <div id="ch-join-err" style="color:var(--accent2);font-size:12px;display:none;margin-bottom:8px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="chompJoinRoom()">🔗 加入</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NIM SETUP ===== -->
+<div class="panel" id="panel-nim-setup">
+  <div class="panel-title">⚡ Nim 多堆版 設定</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="ntab-cpu" onclick="setNTab('cpu')">🖥️ 單人對戰（電腦）</div>
+    <div class="mode-tab" id="ntab-create" onclick="setNTab('create')">🏠 開房間</div>
+    <div class="mode-tab" id="ntab-join" onclick="setNTab('join')">🔗 加入房間</div>
+  </div>
+  <div id="nmode-cpu">
+    <div class="input-group"><label>你的名稱</label><input id="n-cpu-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>堆數</label>
+      <select id="n-heaps"><option value="2">2 堆</option><option value="3" selected>3 堆（經典）</option><option value="4">4 堆</option></select></div>
+    <div class="input-group"><label>每堆最多幾顆（隨機產生）</label>
+      <select id="n-max-per-heap"><option value="7" selected>最多 7 顆</option><option value="10">最多 10 顆</option><option value="15">最多 15 顆</option></select></div>
+    <div class="input-group"><label>電腦難度</label>
+      <select id="n-cpu-diff"><option value="easy">😊 簡單（偶爾隨機走）</option><option value="hard" selected>😈 困難（最優演算法）</option></select></div>
+    <div class="input-group"><label>先手</label>
+      <select id="n-cpu-first"><option value="player">玩家先手</option><option value="cpu">電腦先手</option><option value="random">隨機</option></select></div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="nimBeginCpu()">🚀 開始</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+  <div id="nmode-create" style="display:none">
+    <div class="step active" id="ncreate-s1">
+      <div class="input-group"><label>你的名稱</label><input id="n-host-name" placeholder="房主" maxlength="16"></div>
+      <div class="input-group"><label>堆數</label>
+        <select id="n-room-heaps"><option value="2">2 堆</option><option value="3" selected>3 堆</option><option value="4">4 堆</option></select></div>
+      <div class="input-group"><label>每堆最多幾顆</label>
+        <select id="n-room-max"><option value="7" selected>最多 7 顆</option><option value="10">最多 10 顆</option><option value="15">最多 15 顆</option></select></div>
+      <div class="input-group"><label>先手</label>
+        <select id="n-room-first"><option value="host">房主先手</option><option value="guest">訪客先手</option><option value="random">隨機</option></select></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="nimCreateRoom()">🏠 建立</button>
+        <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+      </div>
+    </div>
+    <div class="step" id="ncreate-s2">
+      <div class="room-code-box"><div class="code-label">房間代碼</div><div class="code-val" id="n-room-code-display">----</div><div class="code-hint">分享給朋友</div></div>
+      <div class="status-bar" style="margin-top:8px"><span class="spinner"></span><span class="status-text">等待對手加入…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="copyCode('n-room-code-display')">📋 複製</button>
+        <button class="btn btn-sm" onclick="nimCancelRoom()">❌ 取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="nmode-join" style="display:none">
+    <div class="input-group"><label>你的名稱</label><input id="n-guest-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>房間代碼</label>
+      <input id="n-join-code" placeholder="XXXX" maxlength="4" style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:20px;" oninput="this.value=this.value.toUpperCase()"></div>
+    <div id="n-join-err" style="color:var(--accent2);font-size:12px;display:none;margin-bottom:8px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="nimJoinRoom()">🔗 加入</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== WYTHOFF SETUP ===== -->
+<div class="panel" id="panel-wythoff-setup">
+  <div class="panel-title">φ Wythoff's Game 設定</div>
+  <div class="mode-tabs">
+    <div class="mode-tab active" id="wtab-cpu" onclick="setWTab('cpu')">🖥️ 單人對戰（電腦）</div>
+    <div class="mode-tab" id="wtab-create" onclick="setWTab('create')">🏠 開房間</div>
+    <div class="mode-tab" id="wtab-join" onclick="setWTab('join')">🔗 加入房間</div>
+  </div>
+  <div id="wmode-cpu">
+    <div class="input-group"><label>你的名稱</label><input id="w-cpu-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>棋盤大小（兩堆最大值）</label>
+      <select id="w-max-val"><option value="8">最大 8（入門）</option><option value="12" selected>最大 12（經典）</option><option value="16">最大 16</option></select></div>
+    <div class="input-group"><label>電腦難度</label>
+      <select id="w-cpu-diff"><option value="easy">😊 簡單（偶爾隨機走）</option><option value="hard" selected>😈 困難（黃金比例公式）</option></select></div>
+    <div class="input-group"><label>先手</label>
+      <select id="w-cpu-first"><option value="player">玩家先手</option><option value="cpu">電腦先手</option><option value="random">隨機</option></select></div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="wythoffBeginCpu()">🚀 開始</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+  <div id="wmode-create" style="display:none">
+    <div class="step active" id="wcreate-s1">
+      <div class="input-group"><label>你的名稱</label><input id="w-host-name" placeholder="房主" maxlength="16"></div>
+      <div class="input-group"><label>棋盤大小</label>
+        <select id="w-room-max"><option value="8">最大 8</option><option value="12" selected>最大 12</option><option value="16">最大 16</option></select></div>
+      <div class="input-group"><label>先手</label>
+        <select id="w-room-first"><option value="host">房主先手</option><option value="guest">訪客先手</option><option value="random">隨機</option></select></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="wythoffCreateRoom()">🏠 建立</button>
+        <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+      </div>
+    </div>
+    <div class="step" id="wcreate-s2">
+      <div class="room-code-box"><div class="code-label">房間代碼</div><div class="code-val" id="w-room-code-display">----</div><div class="code-hint">分享給朋友</div></div>
+      <div class="status-bar" style="margin-top:8px"><span class="spinner"></span><span class="status-text">等待對手加入…</span></div>
+      <div class="btn-row">
+        <button class="btn btn-outline btn-sm" onclick="copyCode('w-room-code-display')">📋 複製</button>
+        <button class="btn btn-sm" onclick="wythoffCancelRoom()">❌ 取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="wmode-join" style="display:none">
+    <div class="input-group"><label>你的名稱</label><input id="w-guest-name" placeholder="玩家" maxlength="16"></div>
+    <div class="input-group"><label>房間代碼</label>
+      <input id="w-join-code" placeholder="XXXX" maxlength="4" style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:20px;" oninput="this.value=this.value.toUpperCase()"></div>
+    <div id="w-join-err" style="color:var(--accent2);font-size:12px;display:none;margin-bottom:8px;"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="wythoffJoinRoom()">🔗 加入</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== NIM GAME ===== -->
+<div class="panel" id="panel-nim-game">
+  <div class="panel-title" id="nim-game-label">⚡ Nim 多堆版</div>
+  <div class="players-row">
+    <div class="player-tag" id="n-p1-tag"><div class="p-name" id="n-p1-name">—</div><div class="p-label">玩家1</div></div>
+    <div style="display:flex;align-items:center;color:var(--text-dim);font-size:11px;font-family:'Orbitron',monospace;">VS</div>
+    <div class="player-tag" id="n-p2-tag"><div class="p-name" id="n-p2-name">—</div><div class="p-label">玩家2</div></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="n-status-dot"></div>
+    <div style="flex:1"><div class="status-text" id="n-status-text">準備中</div><div class="status-sub" id="n-status-sub"></div></div>
+  </div>
+  <div class="nim-xor-display">
+    <div class="nim-xor-val" id="n-xor-val">0</div>
+    <div class="nim-xor-label">Nim-sum（XOR）= 0 表示當前玩家必輸</div>
+  </div>
+  <div class="heap-row" id="n-heaps-display"></div>
+  <div style="font-size:12px;color:var(--text-dim);text-align:center;margin-bottom:8px;" id="n-select-hint">選擇一堆，再選擇要取幾顆</div>
+  <div class="nim-take-area" id="n-take-area"></div>
+  <div class="game-log" id="n-log"></div>
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo');algoTab('nim')">🧠 XOR 演算法解析</button>
+  </div>
+</div>
+
+<!-- ===== WYTHOFF GAME ===== -->
+<div class="panel" id="panel-wythoff-game">
+  <div class="panel-title" id="wythoff-game-label">φ Wythoff's Game</div>
+  <div class="players-row">
+    <div class="player-tag" id="w-p1-tag"><div class="p-name" id="w-p1-name">—</div><div class="p-label">玩家1</div></div>
+    <div style="display:flex;align-items:center;color:var(--text-dim);font-size:11px;font-family:'Orbitron',monospace;">VS</div>
+    <div class="player-tag" id="w-p2-tag"><div class="p-name" id="w-p2-name">—</div><div class="p-label">玩家2</div></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="w-status-dot"></div>
+    <div style="flex:1"><div class="status-text" id="w-status-text">準備中</div><div class="status-sub" id="w-status-sub"></div></div>
+  </div>
+  <div style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">
+    紅色格子 = 必敗位置（⌊n·φ⌋, ⌊n·φ²⌋）。點擊格子移動至該位置（只能減少）。
+  </div>
+  <div class="wythoff-legend">
+    <span><span class="dot" style="background:rgba(255,64,129,0.4);border:1px solid var(--accent2);"></span>必敗位置</span>
+    <span><span class="dot" style="background:rgba(0,229,255,0.2);border:1px solid var(--accent);"></span>目前位置</span>
+    <span><span class="dot" style="background:var(--surface2);border:1px solid var(--border);"></span>可移動</span>
+  </div>
+  <div class="wythoff-grid-wrap"><div id="w-grid"></div></div>
+  <div style="text-align:center;margin:10px 0;font-family:'Orbitron',monospace;font-size:13px;">
+    堆A: <span id="w-heap-a" style="color:var(--accent);font-size:20px;font-weight:900;">0</span>
+    &nbsp;&nbsp;堆B: <span id="w-heap-b" style="color:var(--accent2);font-size:20px;font-weight:900;">0</span>
+  </div>
+  <div class="game-log" id="w-log"></div>
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo');algoTab('wythoff')">🧠 黃金比例解析</button>
+  </div>
+</div>
+
+<!-- ===== BACHET GAME ===== -->
+<div class="panel" id="panel-bachet-game">
+  <div class="panel-title" id="bachet-game-label">🪨 Bachet's Game</div>
+  <div class="players-row">
+    <div class="player-tag" id="b-p1-tag"><div class="p-name" id="b-p1-name">—</div><div class="p-label">玩家1</div></div>
+    <div style="display:flex;align-items:center;color:var(--text-dim);font-size:11px;font-family:'Orbitron',monospace;">VS</div>
+    <div class="player-tag" id="b-p2-tag"><div class="p-name" id="b-p2-name">—</div><div class="p-label">玩家2</div></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="b-status-dot"></div>
+    <div style="flex:1"><div class="status-text" id="b-status-text">準備中</div><div class="status-sub" id="b-status-sub"></div></div>
+  </div>
+  <div style="text-align:center;margin:20px 0;">
+    <div class="stones-display" id="b-stones-display"></div>
+    <div class="stones-count" id="b-stones-count">0</div>
+    <div class="stones-label">顆石頭剩餘</div>
+  </div>
+  <div class="warn-box" id="b-warn-box"></div>
+  <div class="take-btns" id="b-take-btns"></div>
+  <div class="game-log" id="b-log"></div>
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo')">🧠 演算法解析</button>
+  </div>
+</div>
+
+<!-- ===== COUNT21 GAME ===== -->
+<div class="panel" id="panel-count21-game">
+  <div class="panel-title" id="count21-game-label">🔢 21點報數</div>
+  <div class="players-row">
+    <div class="player-tag" id="c-p1-tag"><div class="p-name" id="c-p1-name">—</div><div class="p-label">玩家1</div></div>
+    <div style="display:flex;align-items:center;color:var(--text-dim);font-size:11px;font-family:'Orbitron',monospace;">VS</div>
+    <div class="player-tag" id="c-p2-tag"><div class="p-name" id="c-p2-name">—</div><div class="p-label">玩家2</div></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="c-status-dot"></div>
+    <div style="flex:1"><div class="status-text" id="c-status-text">準備中</div><div class="status-sub" id="c-status-sub"></div></div>
+  </div>
+  <div class="count-track" id="c-track"></div>
+  <div class="count-display"><div class="count-big" id="c-count">0</div><div class="count-label">目前數到</div></div>
+  <div class="say-btns" id="c-say-btns"></div>
+  <div class="game-log" id="c-log"></div>
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo')">🧠 演算法解析</button>
+  </div>
+</div>
+
+<!-- ===== CHOMP GAME ===== -->
+<div class="panel" id="panel-chomp-game">
+  <div class="panel-title" id="chomp-game-label">🍫 Chomp</div>
+  <div class="players-row">
+    <div class="player-tag" id="ch-p1-tag"><div class="p-name" id="ch-p1-name">—</div><div class="p-label">玩家1</div></div>
+    <div style="display:flex;align-items:center;color:var(--text-dim);font-size:11px;font-family:'Orbitron',monospace;">VS</div>
+    <div class="player-tag" id="ch-p2-tag"><div class="p-name" id="ch-p2-name">—</div><div class="p-label">玩家2</div></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="ch-status-dot"></div>
+    <div style="flex:1"><div class="status-text" id="ch-status-text">準備中</div><div class="status-sub" id="ch-status-sub"></div></div>
+  </div>
+  <div style="font-size:11px;color:var(--text-dim);margin-bottom:10px;">點擊任一格，該格及其右方、上方所有格都會被吃掉。左下角☠️毒格不能主動吃！</div>
+  <div class="chomp-wrap"><div class="chomp-board" id="ch-board"></div></div>
+  <div class="game-log" id="ch-log"></div>
+  <div class="btn-row" style="margin-top:14px">
+    <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo');algoTab('minimax')">🧠 Minimax 解析</button>
+  </div>
+</div>
+
+<!-- ===== RULES ===== -->
+<div class="panel" id="panel-rules">
+  <div class="panel-title">📖 遊戲規則</div>
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
+    <strong style="color:var(--accent);">🪨 Bachet's Game</strong><br>
+    桌上有 N 顆石頭，兩人輪流取，每次取 1~M 顆。<strong style="color:var(--text)">取走最後一顆的人輸</strong>（Misère 規則）。
+  </div>
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
+    <strong style="color:var(--accent4);">🔢 21點報數</strong><br>
+    兩人輪流從 1 開始往上報數，每次可報 1~M 個。<strong style="color:var(--text)">說到目標數字者輸</strong>。本質與 Bachet's Game 完全相同！
+  </div>
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
+    <strong style="color:var(--accent2);">🍫 Chomp</strong><br>
+    一塊 M×N 巧克力，左下角是☠️毒格。點擊一格，該格及右方、上方所有格都被吃掉。<strong style="color:var(--text)">被迫吃毒格者輸</strong>。數學上先手必勝，但沒有已知通用策略！
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    <button class="btn btn-algo btn-sm" onclick="showPanel('panel-algo')">🧠 演算法解析</button>
+  </div>
+</div>
+
+</div><!-- /container -->
+
 <div class="result-overlay" id="result-overlay">
   <div class="result-box">
     <span class="result-emoji" id="result-emoji">🏆</span>
     <div class="result-title" id="result-title">勝利！</div>
-    <div class="result-msg"   id="result-msg"></div>
+    <div class="result-msg" id="result-msg"></div>
     <div class="btn-row" style="justify-content:center">
       <button class="btn btn-primary" onclick="playAgain()">🔄 再玩一局</button>
       <button class="btn btn-outline" onclick="goHome()">🏠 主選單</button>
@@ -698,624 +1439,866 @@
 
 <script>
 // ============================================================
-//  STATE
+//  ALGO PANEL LOGIC
 // ============================================================
-const G = {
-  mode: null,          // 'ai' | 'host' | 'guest'
-  stones: 0,
-  maxTake: 3,
-  currentPlayer: 1,   // 1 = p1/host, 2 = p2/ai/guest
-  p1Name: '玩家',
-  p2Name: 'AI',
-  aiDifficulty: 'hard',
-  myPlayer: 1,
-  roomCode: null,
-  gameOver: false,
-  pollInterval: null,
-  lastSeen: 0,
-  // snapshot of settings for rematch
-  lastSettings: null,
-};
-
-const ROOMS_KEY = 'bachet_rooms_v2';
-
-function getRooms() {
-  try { return JSON.parse(localStorage.getItem(ROOMS_KEY) || '{}'); } catch { return {}; }
+function algoTab(id){
+  const ids=['dp','nim','wythoff','minimax','complexity','leetcode'];
+  document.querySelectorAll('.algo-nav-tab').forEach((t,i)=>{t.classList.toggle('active',ids[i]===id);});
+  document.querySelectorAll('.algo-section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('algo-'+id).classList.add('active');
+  if(id==='dp') dpInit();
 }
-function saveRooms(r) { localStorage.setItem(ROOMS_KEY, JSON.stringify(r)); }
+
+// ---- DP Stepper ----
+let dpState = { step:-1, n:12, maxTake:3, dp:[], steps:[] };
+
+function dpInit(){
+  const {n, maxTake} = dpState;
+  dpState.dp = new Array(n+1).fill(null);
+  dpState.steps = [];
+  // pre-compute all steps
+  dpState.dp[0] = false; dpState.steps.push({idx:0, val:false, note:'dp[0]=L：無石頭可取（上一步已輸），輪到自己時遊戲已結束'});
+  dpState.dp[1] = false; dpState.steps.push({idx:1, val:false, note:'dp[1]=L：只剩1顆，Misère規則必須取 → 必輸'});
+  for(let i=2;i<=n;i++){
+    let win=false;
+    for(let t=1;t<=Math.min(maxTake,i-1);t++){
+      if(dpState.dp[i-t]===false){ win=true; break; }
+    }
+    dpState.dp[i]=win;
+    const takes=[];
+    for(let t=1;t<=Math.min(maxTake,i-1);t++) takes.push(`取${t}→剩${i-t}(${dpState.dp[i-t]===false?'L':'W'})`);
+    dpState.steps.push({idx:i, val:win, note:`dp[${i}]=${win?'W':'L'}：${takes.join('，')}${win?'，存在讓對手進L的走法':'，所有走法對手都是W'}`});
+  }
+  dpState.step=-1;
+  dpRenderTable();
+  document.getElementById('dp-step-info').innerHTML='點擊「下一步」開始填表';
+}
+
+function dpRenderTable(){
+  const {n, dp, step} = dpState;
+  const cur = dpState.steps[step] || null;
+  let html='<table class="dp-table"><tr><th>n</th>';
+  for(let i=0;i<=n;i++) html+=`<th>${i}</th>`;
+  html+='</tr><tr><td style="color:var(--text-dim);font-size:11px">dp[n]</td>';
+  for(let i=0;i<=n;i++){
+    const v=dp[i];
+    const isCur=cur&&cur.idx===i;
+    if(v===null) html+=`<td${isCur?' class="highlight"':''}></td>`;
+    else html+=`<td class="${v?'win':'lose'}${isCur?' highlight':''}">${v?'W':'L'}</td>`;
+  }
+  html+='</tr></table>';
+  document.getElementById('dp-table-container').innerHTML=html;
+}
+
+function dpNext(){
+  if(dpState.step>=dpState.steps.length-1) return;
+  dpState.step++;
+  const s=dpState.steps[dpState.step];
+  dpRenderTable();
+  document.getElementById('dp-step-info').innerHTML=`<span>n=${s.idx}</span>：${s.note}`;
+}
+function dpPrev(){
+  if(dpState.step<=0){ dpState.step=-1; dpInit(); return; }
+  dpState.step--;
+  // rebuild dp up to current step
+  dpState.dp=new Array(dpState.n+1).fill(null);
+  for(let i=0;i<=dpState.step;i++){
+    const s=dpState.steps[i]; dpState.dp[s.idx]=s.val;
+  }
+  const s=dpState.steps[dpState.step];
+  dpRenderTable();
+  document.getElementById('dp-step-info').innerHTML=`<span>n=${s.idx}</span>：${s.note}`;
+}
+function dpReset(){ dpInit(); }
+
+// init dp table when algo panel first loads
+document.addEventListener('DOMContentLoaded', ()=>{});
 
 // ============================================================
-//  NAVIGATION
+//  SHARED UTILS
 // ============================================================
-function showPanel(id) {
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+const ROOMS_KEY='mathgames_rooms_v2';
+function getRooms(){try{return JSON.parse(localStorage.getItem(ROOMS_KEY)||'{}')}catch{return{}}}
+function saveRooms(r){localStorage.setItem(ROOMS_KEY,JSON.stringify(r))}
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if(id==='panel-algo') dpInit();
 }
-
-function startAIGame() { showPanel('panel-ai-setup'); }
-
-// ============================================================
-//  AI GAME
-// ============================================================
-function beginAIGame() {
-  // FIX: clear any leftover polling/timers before starting
+function copyCode(elId){
+  const val=document.getElementById(elId).textContent;
+  navigator.clipboard?.writeText(val).catch(()=>{});
+  const btn=event.target,orig=btn.textContent;
+  btn.textContent='✅ 已複製！';setTimeout(()=>btn.textContent=orig,1500);
+}
+function generateCode(){
+  const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';for(let i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];return s;
+}
+function uniqueCode(){const rooms=getRooms();let code;do{code=generateCode();}while(rooms[code]);return code;}
+function resolveFirst(sel){if(sel==='guest'||sel==='cpu')return 2;if(sel==='random')return Math.random()<0.5?1:2;return 1;}
+let globalPollInterval=null;
+function stopPolling(){if(globalPollInterval){clearInterval(globalPollInterval);globalPollInterval=null;}}
+function cleanupRoom(code){if(!code)return;const rooms=getRooms();delete rooms[code];saveRooms(rooms);}
+function selectGame(g){
+  if(g==='bachet')showPanel('panel-bachet-setup');
+  else if(g==='count21')showPanel('panel-count21-setup');
+  else if(g==='chomp')showPanel('panel-chomp-setup');
+  else if(g==='nim')showPanel('panel-nim-setup');
+  else if(g==='wythoff')showPanel('panel-wythoff-setup');
+}
+let CUR={game:null,roomCode:null,lastSettings:null};
+function goHome(){
+  document.getElementById('result-overlay').classList.remove('show');
   stopPolling();
-
-  const name   = document.getElementById('ai-player-name').value.trim() || '玩家';
-  const stones  = +document.getElementById('ai-stones').value;
-  const maxTake = +document.getElementById('ai-max-take').value;
-  const diff    = document.getElementById('ai-difficulty').value;
-  const firstSel = document.getElementById('ai-first').value;
-
-  G.mode        = 'ai';
-  G.stones      = stones;
-  G.maxTake     = maxTake;
-  G.p1Name      = name;
-  G.p2Name      = `AI（${diff === 'hard' ? '困難' : '簡單'}）`;
-  G.aiDifficulty = diff;
-  G.myPlayer    = 1;
-  G.gameOver    = false;
-
-  // Save for rematch
-  G.lastSettings = { mode:'ai', name, stones, maxTake, diff, firstSel };
-
-  let first = 1;
-  if (firstSel === 'ai')     first = 2;
-  else if (firstSel === 'random') first = Math.random() < 0.5 ? 1 : 2;
-  G.currentPlayer = first;
-
-  initGameUI();
-  showPanel('panel-game');
-  document.getElementById('game-mode-label').textContent = '人機對戰';
-
-  if (G.currentPlayer === 2) {
-    updateStatus();
-    setTimeout(aiTurn, 900);
-  } else {
-    updateStatus();
-  }
+  if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}
+  ['bcreate-s1','ccreate-s1','chcreate-s1','ncreate-s1','wcreate-s1'].forEach(id=>document.getElementById(id).classList.add('active'));
+  ['bcreate-s2','ccreate-s2','chcreate-s2','ncreate-s2','wcreate-s2'].forEach(id=>document.getElementById(id).classList.remove('active'));
+  CUR.game=null;showPanel('panel-home');
 }
-
-// ============================================================
-//  CREATE ROOM
-// ============================================================
-function generateCode() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let c = '';
-  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
-  return c;
-}
-
-function createRoom() {
+function playAgain(){
+  document.getElementById('result-overlay').classList.remove('show');
   stopPolling();
-
-  const hostName = document.getElementById('host-name').value.trim() || '房主';
-  const stones   = +document.getElementById('room-stones').value;
-  const maxTake  = +document.getElementById('room-max-take').value;
-  const firstSel = document.getElementById('room-first').value;
-
-  // FIX: determine first player here (host-side) so both sides agree
-  let firstPlayer = 1;
-  if (firstSel === 'guest')  firstPlayer = 2;
-  else if (firstSel === 'random') firstPlayer = Math.random() < 0.5 ? 1 : 2;
-
-  let code;
-  const rooms = getRooms();
-  do { code = generateCode(); } while (rooms[code]);
-
-  rooms[code] = {
-    code,
-    hostName,
-    stones,
-    maxTake,
-    firstPlayer,   // FIX: store resolved first player, not the raw selection
-    guest: false,
-    guestName: null,
-    started: false,
-    moves: [],
-    created: Date.now(),
-  };
-  saveRooms(rooms);
-
-  G.roomCode = code;
-  G.p1Name   = hostName;
-  G.mode     = 'host';
-  G.myPlayer = 1;
-
-  document.getElementById('display-room-code').textContent = code;
-  document.getElementById('create-step1').classList.remove('active');
-  document.getElementById('create-step2').classList.add('active');
-
-  G.pollInterval = setInterval(checkForGuest, 1000);
+  if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}
+  if(CUR.lastSettings){
+    const s=CUR.lastSettings;
+    if(s.game==='bachet')_bachetStart(s);
+    else if(s.game==='count21')_count21Start(s);
+    else if(s.game==='chomp')_chompStart(s);
+    else if(s.game==='nim')_nimStart(s);
+    else if(s.game==='wythoff')_wythoffStart(s);
+  }else goHome();
 }
-
-function checkForGuest() {
-  const rooms = getRooms();
-  const room  = rooms[G.roomCode];
-  if (!room) { stopPolling(); return; }
-  if (room.guest) {
-    stopPolling();
-    startMultiGame(room);
-  }
-}
-
-function cancelRoom() {
-  stopPolling();
-  if (G.roomCode) {
-    const rooms = getRooms();
-    delete rooms[G.roomCode];
-    saveRooms(rooms);
-    G.roomCode = null;
-  }
-  document.getElementById('create-step1').classList.add('active');
-  document.getElementById('create-step2').classList.remove('active');
-  showPanel('panel-home');
-}
-
-function copyRoomCode() {
-  const code = G.roomCode || document.getElementById('display-room-code').textContent;
-  navigator.clipboard?.writeText(code).catch(() => {});
-  const btn = event.target;
-  const orig = btn.textContent;
-  btn.textContent = '✅ 已複製！';
-  setTimeout(() => btn.textContent = orig, 1500);
-}
-
-// ============================================================
-//  JOIN ROOM
-// ============================================================
-function joinRoom() {
-  stopPolling();
-  const guestName = document.getElementById('guest-name').value.trim() || '訪客';
-  const code      = document.getElementById('join-code').value.trim().toUpperCase();
-  const errEl     = document.getElementById('join-error');
-  errEl.style.display = 'none';
-
-  if (code.length !== 4) {
-    errEl.textContent = '請輸入 4 位房間代碼';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  const rooms = getRooms();
-  const room  = rooms[code];
-
-  if (!room) {
-    errEl.textContent = '找不到此房間，請確認代碼是否正確';
-    errEl.style.display = 'block';
-    return;
-  }
-  if (room.guest || room.started) {
-    errEl.textContent = '此房間已有玩家或遊戲已開始，無法加入';
-    errEl.style.display = 'block';
-    return;
-  }
-
-  // FIX: mark as started before reading firstPlayer so host's resolved value is used
-  room.guest     = true;
-  room.guestName = guestName;
-  room.started   = true;
-  rooms[code]    = room;
-  saveRooms(rooms);
-
-  G.roomCode = code;
-  G.mode     = 'guest';
-  G.myPlayer = 2;
-
-  startMultiGame(room);
-}
-
-// ============================================================
-//  MULTI GAME START
-// ============================================================
-function startMultiGame(room) {
-  G.stones   = room.stones;
-  G.maxTake  = room.maxTake;
-  G.p1Name   = room.hostName;
-  G.p2Name   = room.guestName || '訪客';
-  G.gameOver = false;
-
-  // FIX: firstPlayer was already resolved by host when creating room
-  G.currentPlayer = room.firstPlayer || 1;
-  G.lastSeen      = (room.moves || []).length;
-
-  initGameUI();
-  showPanel('panel-game');
-  document.getElementById('game-mode-label').textContent =
-    G.mode === 'host' ? '🏠 雙人對戰（房主）' : '🔗 雙人對戰（訪客）';
-
-  updateStatus();
-
-  if (G.currentPlayer !== G.myPlayer) {
-    G.pollInterval = setInterval(pollMoves, 800);
-  }
-}
-
-function pollMoves() {
-  if (G.gameOver) { stopPolling(); return; }
-  const rooms = getRooms();
-  const room  = rooms[G.roomCode];
-  if (!room) { stopPolling(); return; }
-
-  const moves = room.moves || [];
-  if (moves.length > G.lastSeen) {
-    const mv = moves[G.lastSeen];
-    G.lastSeen = moves.length;
-    stopPolling();
-    applyMove(mv.player, mv.take, true);
-  }
-}
-
-function stopPolling() {
-  if (G.pollInterval) {
-    clearInterval(G.pollInterval);
-    G.pollInterval = null;
-  }
-}
-
-// ============================================================
-//  GAME INIT UI
-// ============================================================
-function initGameUI() {
-  document.getElementById('p1-name').textContent = G.p1Name;
-  document.getElementById('p2-name').textContent = G.p2Name;
-
-  // Take buttons
-  const container = document.getElementById('take-btns');
-  container.innerHTML = '';
-  for (let i = 1; i <= G.maxTake; i++) {
-    const btn = document.createElement('button');
-    btn.className = 'take-btn';
-    btn.id = `take-${i}`;
-    btn.innerHTML = `${i}<span class="label">取 ${i} 顆</span>`;
-    btn.onclick = () => playerTake(i);
-    container.appendChild(btn);
-  }
-
-  document.getElementById('game-log').innerHTML = '';
-  document.getElementById('last-stone-warning').classList.remove('show');
-  addLog('sys', `遊戲開始！共 ${G.stones} 顆石頭，每次最多取 ${G.maxTake} 顆。取走最後一顆的人「輸」。`);
-
-  renderStones();
-  updateStatus();
-}
-
-function renderStones() {
-  const display = document.getElementById('stones-display');
-  document.getElementById('stones-count').textContent = G.stones;
-
-  display.innerHTML = '';
-  const show = Math.min(G.stones, 60);
-  for (let i = 0; i < show; i++) {
-    const s = document.createElement('div');
-    s.className = 'stone';
-    display.appendChild(s);
-  }
-  if (G.stones > 60) {
-    const more = document.createElement('span');
-    more.style.cssText = 'color:var(--text-dim);font-size:13px;align-self:center';
-    more.textContent = `…+${G.stones - 60}`;
-    display.appendChild(more);
-  }
-
-  // FIX: show/hide last-stone warning
-  const warn = document.getElementById('last-stone-warning');
-  if (G.stones === 1) {
-    // The CURRENT player is forced to take — they lose
-    const isMe = G.mode === 'ai'
-      ? G.currentPlayer === 1
-      : G.currentPlayer === G.myPlayer;
-    warn.textContent = isMe
-      ? '😱 只剩 1 顆！你被迫取走它，你輸了…'
-      : '🎉 只剩 1 顆！對手必須取走它，你獲勝！';
-    warn.classList.add('show');
-  } else {
-    warn.classList.remove('show');
-  }
-}
-
-function updateStatus() {
-  const dot = document.getElementById('status-dot');
-  const txt = document.getElementById('status-text');
-  const sub = document.getElementById('status-sub');
-
-  document.getElementById('p1-tag').classList.toggle('active', G.currentPlayer === 1);
-  document.getElementById('p2-tag').classList.toggle('active', G.currentPlayer === 2);
-
-  if (G.gameOver) {
-    dot.className = 'status-indicator over';
-    txt.textContent = '遊戲結束';
-    sub.textContent = '';
-    setTakeBtnsEnabled(false);
-    return;
-  }
-
-  const isMyTurn = G.mode === 'ai'
-    ? G.currentPlayer === 1
-    : G.currentPlayer === G.myPlayer;
-
-  const curName = G.currentPlayer === 1 ? G.p1Name : G.p2Name;
-
-  if (isMyTurn) {
-    dot.className = 'status-indicator your-turn';
-    if (G.stones === 1) {
-      // FIX: only 1 stone left — forced take, game will end immediately
-      txt.textContent = '你的回合（被迫取走最後一顆）';
-      sub.textContent = '按下取 1 顆完成遊戲';
-      setTakeBtnsEnabled(true);
-      // Disable buttons > remaining stones
-      for (let i = 1; i <= G.maxTake; i++) {
-        const b = document.getElementById(`take-${i}`);
-        if (b) b.disabled = i > G.stones;
-      }
-    } else {
-      const canTake = Math.min(G.maxTake, G.stones - 1);
-      txt.textContent = '你的回合';
-      sub.textContent = `可取 1 ~ ${canTake} 顆（取走最後 1 顆者輸）`;
-      setTakeBtnsEnabled(true);
-      // FIX: disable buttons that would take all remaining stones (leave 0) except when only 1 left
-      for (let i = 1; i <= G.maxTake; i++) {
-        const b = document.getElementById(`take-${i}`);
-        if (!b) continue;
-        b.disabled = i >= G.stones; // can't take all (would leave 0 in mid-game)
-      }
-    }
-  } else {
-    dot.className = 'status-indicator waiting';
-    txt.textContent = `${curName} 的回合`;
-    sub.textContent = G.mode === 'ai' ? 'AI 思考中…' : '等待對手操作…';
-    setTakeBtnsEnabled(false);
-  }
-}
-
-function setTakeBtnsEnabled(enabled) {
-  for (let i = 1; i <= G.maxTake; i++) {
-    const btn = document.getElementById(`take-${i}`);
-    if (btn) btn.disabled = !enabled;
-  }
-}
-
-function addLog(type, msg) {
-  const log = document.getElementById('game-log');
-  const el  = document.createElement('div');
-  el.className  = `log-entry log-${type}`;
-  el.textContent = msg;
-  log.appendChild(el);
-  log.scrollTop = log.scrollHeight;
-}
-
-// ============================================================
-//  PLAYER ACTION
-// ============================================================
-function playerTake(n) {
-  if (G.gameOver) return;
-  // FIX: guard: can't take more than remaining, allow taking all only when forced (stones=1)
-  if (n > G.stones) return;
-  if (n >= G.stones && G.stones > 1) return; // can't clear all in non-forced situation
-  if (G.mode === 'ai' && G.currentPlayer !== 1) return;
-  if (G.mode !== 'ai' && G.currentPlayer !== G.myPlayer) return;
-
-  if (G.mode !== 'ai') {
-    const rooms = getRooms();
-    const room  = rooms[G.roomCode];
-    if (!room) return;
-    room.moves = room.moves || [];
-    room.moves.push({ player: G.myPlayer, take: n });
-    saveRooms(rooms);
-    G.lastSeen = room.moves.length;
-  }
-
-  applyMove(G.myPlayer, n, true);
-}
-
-function applyMove(player, n, animate) {
-  const playerName = player === 1 ? G.p1Name : G.p2Name;
-  addLog(player === 1 ? 'p1' : 'p2', `${playerName} 取走了 ${n} 顆石頭`);
-
-  // Animate taken stones
-  if (animate) {
-    const stoneEls  = document.querySelectorAll('.stone');
-    const toAnimate = Math.min(n, stoneEls.length);
-    for (let i = stoneEls.length - 1; i >= stoneEls.length - toAnimate; i--) {
-      stoneEls[i].classList.add('taken');
-    }
-  }
-
-  G.stones -= n;
-
-  // Check Misère win: person who takes LAST stone loses
-  if (G.stones === 0) {
-    G.gameOver = true;
-    const loserName  = player === 1 ? G.p1Name : G.p2Name;
-    const winner     = player === 1 ? 2 : 1;
-    const winnerName = winner === 1 ? G.p1Name : G.p2Name;
-    renderStones();
-    updateStatus();
-    addLog('sys', `${loserName} 取走了最後一顆石頭！${winnerName} 獲勝🎉`);
-    setTimeout(() => showResult(winner, winnerName, loserName), 700);
-    return;
-  }
-
-  // Switch turn
-  G.currentPlayer = G.currentPlayer === 1 ? 2 : 1;
-  renderStones();
-  updateStatus();
-
-  if (G.mode === 'ai' && G.currentPlayer === 2) {
-    setTimeout(aiTurn, 600 + Math.random() * 700);
-  } else if (G.mode !== 'ai' && G.currentPlayer !== G.myPlayer) {
-    G.pollInterval = setInterval(pollMoves, 800);
-  }
-}
-
-// ============================================================
-//  AI LOGIC — FIXED
-// ============================================================
-function aiTurn() {
-  if (G.gameOver) return;
-  const take = calcAIMove();
-  // FIX: removed premature "思考中" log — applyMove already logs the action
-  setTimeout(() => applyMove(2, take, true), 200);
-}
-
-function calcAIMove() {
-  const k = G.maxTake + 1;
-  const s = G.stones;
-
-  if (G.aiDifficulty === 'easy') {
-    if (Math.random() < 0.45) return calcOptimalMove(s, k);
-    const max = Math.min(G.maxTake, s === 1 ? 1 : s - 1);
-    return Math.floor(Math.random() * max) + 1;
-  }
-  return calcOptimalMove(s, k);
-}
-
-function calcOptimalMove(s, k) {
-  // FIX: handle s=1 (forced loss, must take 1)
-  if (s === 1) return 1;
-
-  // Misère Nim optimal strategy:
-  // Losing position: s mod k == 1  → can't win against perfect play
-  // Winning move: take enough to leave s mod k == 1
-  const remainder = s % k;
-
-  if (remainder === 1) {
-    // FIX: already in losing position — take a small random valid amount (not 0, not all)
-    const max = Math.min(G.maxTake, s - 1);
-    return Math.floor(Math.random() * max) + 1;
-  }
-
-  // FIX: remainder can be 0 when s is multiple of k
-  // take = remainder - 1 would be -1, so clamp to 1
-  let take = remainder === 0 ? k - 1 : remainder - 1;
-  // Ensure take is within [1, maxTake] and won't clear all stones
-  take = Math.max(1, Math.min(take, G.maxTake, s - 1));
-  return take;
-}
-
-// ============================================================
-//  RESULT
-// ============================================================
-function showResult(winner, winnerName, loserName) {
-  const isMe = (G.mode === 'ai' && winner === 1) ||
-               (G.mode !== 'ai' && winner === G.myPlayer);
-
-  document.getElementById('result-emoji').textContent = isMe ? '🏆' : '😔';
-  const title = document.getElementById('result-title');
-  title.textContent = isMe ? '勝利！' : '失敗';
-  title.style.color = isMe ? 'var(--accent3)' : 'var(--accent2)';
-  document.getElementById('result-msg').textContent = isMe
-    ? `恭喜 ${winnerName} 獲勝！\n${loserName} 取走了最後一顆石頭。`
-    : `${winnerName} 獲勝！\n你取走了最後一顆石頭。下次加油！`;
-
+function showResult(winner,winnerName,loserName,isMe,flavor){
+  document.getElementById('result-emoji').textContent=isMe?'🏆':'😔';
+  const t=document.getElementById('result-title');
+  t.textContent=isMe?'勝利！':'失敗';
+  t.style.color=isMe?'var(--accent3)':'var(--accent2)';
+  document.getElementById('result-msg').textContent=
+    isMe?`恭喜 ${winnerName} 獲勝！\n${flavor}`:`${winnerName} 獲勝！\n${flavor}\n下次加油！`;
   document.getElementById('result-overlay').classList.add('show');
-  if (isMe) launchConfetti();
+  if(isMe)launchConfetti();
+}
+function addLog(logId,type,msg){
+  const log=document.getElementById(logId),el=document.createElement('div');
+  el.className=`log-entry log-${type}`;el.textContent=msg;log.appendChild(el);log.scrollTop=log.scrollHeight;
+}
+function setStatusDot(dotId,state){document.getElementById(dotId).className='status-dot '+state;}
+function updatePlayerTags(p1Id,p2Id,cur){
+  document.getElementById(p1Id).classList.toggle('active',cur===1);
+  document.getElementById(p2Id).classList.toggle('active',cur===2);
+}
+function startRoomPolling(roomCode,cb){
+  stopPolling();
+  globalPollInterval=setInterval(()=>{
+    const rooms=getRooms();if(!rooms[roomCode]){stopPolling();return;}cb(rooms[roomCode]);
+  },800);
+}
+function setBTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('btab-'+t).classList.toggle('active',t===m);document.getElementById('bmode-'+t).style.display=t===m?'block':'none';});}
+function setCTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('ctab-'+t).classList.toggle('active',t===m);document.getElementById('cmode-'+t).style.display=t===m?'block':'none';});}
+function setChTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('chtab-'+t).classList.toggle('active',t===m);document.getElementById('chmode-'+t).style.display=t===m?'block':'none';});}
+function setNTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('ntab-'+t).classList.toggle('active',t===m);document.getElementById('nmode-'+t).style.display=t===m?'block':'none';});}
+function setWTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('wtab-'+t).classList.toggle('active',t===m);document.getElementById('wmode-'+t).style.display=t===m?'block':'none';});}
+
+// ============================================================
+//  BACHET
+// ============================================================
+const B={stones:0,maxTake:3,currentPlayer:1,p1Name:'玩家',p2Name:'電腦',mode:null,myPlayer:1,cpuDiff:'hard',roomCode:null,lastSeen:0,gameOver:false};
+function bachetBeginCpu(){_bachetStart({game:'bachet',mode:'cpu',name:document.getElementById('b-cpu-name').value.trim()||'玩家',stones:+document.getElementById('b-cpu-stones').value,maxTake:+document.getElementById('b-cpu-max').value,diff:document.getElementById('b-cpu-diff').value,firstSel:document.getElementById('b-cpu-first').value});}
+function _bachetStart(s){
+  stopPolling();CUR.game='bachet';CUR.lastSettings=s;
+  B.mode=s.mode;B.stones=s.stones;B.maxTake=s.maxTake;B.cpuDiff=s.diff||'hard';
+  B.p1Name=s.name||s.hostName||'玩家';B.p2Name=B.mode==='cpu'?`電腦（${B.cpuDiff==='hard'?'最優演算法':'隨機走法'}）`:(s.guestName||'訪客');
+  B.myPlayer=s.myPlayer||1;B.gameOver=false;B.roomCode=s.roomCode||null;
+  B.currentPlayer=s.firstPlayer||resolveFirst(s.firstSel||'player');
+  _bachetInitUI();showPanel('panel-bachet-game');
+  document.getElementById('bachet-game-label').textContent='🪨 Bachet\'s Game'+(B.mode!=='cpu'?(B.myPlayer===1?' (房主)':' (訪客)'):'');
+  if(B.mode==='cpu'&&B.currentPlayer===2){bUpdateStatus();setTimeout(bCpuTurn,900);}
+  else{bUpdateStatus();}
+  if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer){startRoomPolling(B.roomCode,room=>{const mv=room.moves||[];if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});}
+}
+function _bachetInitUI(){
+  document.getElementById('b-p1-name').textContent=B.p1Name;
+  document.getElementById('b-p2-name').textContent=B.p2Name;
+  const c=document.getElementById('b-take-btns');c.innerHTML='';
+  for(let i=1;i<=B.maxTake;i++){const btn=document.createElement('button');btn.className='take-btn';btn.id='btake-'+i;btn.innerHTML=`${i}<span class="lbl">取${i}顆</span>`;btn.onclick=()=>bPlayerTake(i);c.appendChild(btn);}
+  document.getElementById('b-log').innerHTML='';
+  document.getElementById('b-warn-box').classList.remove('show');
+  addLog('b-log','sys',`開始！${B.stones}顆石頭，每次最多取${B.maxTake}顆。取最後一顆者輸。`);
+  bRenderStones();bUpdateStatus();
+}
+function bRenderStones(){
+  const d=document.getElementById('b-stones-display');
+  document.getElementById('b-stones-count').textContent=B.stones;
+  d.innerHTML='';
+  const show=Math.min(B.stones,60);
+  for(let i=0;i<show;i++){const s=document.createElement('div');s.className='stone';d.appendChild(s);}
+  if(B.stones>60){const m=document.createElement('span');m.style.cssText='color:var(--text-dim);font-size:12px;align-self:center';m.textContent=`+${B.stones-60}…`;d.appendChild(m);}
+  const warn=document.getElementById('b-warn-box');
+  if(B.stones===1){const isMe=B.mode==='cpu'?B.currentPlayer===1:B.currentPlayer===B.myPlayer;warn.textContent=isMe?'😱 只剩1顆！你被迫取走，你輸了…':'🎉 只剩1顆！對手必須取走，你贏了！';warn.classList.add('show');}
+  else warn.classList.remove('show');
+}
+function bUpdateStatus(){
+  const isMyTurn=B.mode==='cpu'?B.currentPlayer===1:B.currentPlayer===B.myPlayer;
+  updatePlayerTags('b-p1-tag','b-p2-tag',B.currentPlayer);
+  if(B.gameOver){setStatusDot('b-status-dot','over');document.getElementById('b-status-text').textContent='遊戲結束';document.getElementById('b-status-sub').textContent='';bSetBtns(false);return;}
+  const curName=B.currentPlayer===1?B.p1Name:B.p2Name;
+  if(isMyTurn){
+    setStatusDot('b-status-dot','your-turn');
+    document.getElementById('b-status-text').textContent='你的回合';
+    document.getElementById('b-status-sub').textContent=B.stones===1?'被迫取走最後1顆':`可取 1~${Math.min(B.maxTake,B.stones-1)} 顆`;
+    bSetBtns(true);
+    for(let i=1;i<=B.maxTake;i++){const btn=document.getElementById('btake-'+i);if(btn)btn.disabled=B.stones>1?i>=B.stones:i>1;}
+  }else{
+    setStatusDot('b-status-dot','waiting');
+    document.getElementById('b-status-text').textContent=`${curName} 的回合`;
+    document.getElementById('b-status-sub').textContent=B.mode==='cpu'?'電腦計算中…':'等待對手…';
+    bSetBtns(false);
+  }
+}
+function bSetBtns(e){for(let i=1;i<=B.maxTake;i++){const b=document.getElementById('btake-'+i);if(b)b.disabled=!e;}}
+function bPlayerTake(n){
+  if(B.gameOver||n>B.stones)return;
+  if(B.stones>1&&n>=B.stones)return;
+  if(B.mode==='cpu'&&B.currentPlayer!==1)return;
+  if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)return;
+  if(B.mode!=='cpu'){const rooms=getRooms();const room=rooms[B.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:B.myPlayer,take:n});saveRooms(rooms);B.lastSeen=room.moves.length;}
+  bApplyMove(B.myPlayer,n,true);
+}
+function bApplyMove(player,n,animate){
+  const name=player===1?B.p1Name:B.p2Name;
+  addLog('b-log',player===1?'p1':'p2',`${name} 取走了 ${n} 顆`);
+  if(animate){const els=document.querySelectorAll('#b-stones-display .stone');const cnt=Math.min(n,els.length);for(let i=els.length-1;i>=els.length-cnt;i--)els[i].classList.add('taken');}
+  B.stones-=n;
+  if(B.stones===0){
+    B.gameOver=true;
+    const loser=player===1?B.p1Name:B.p2Name,winnerIdx=player===1?2:1,winner=winnerIdx===1?B.p1Name:B.p2Name;
+    bRenderStones();bUpdateStatus();addLog('b-log','sys',`${loser}取走最後一顆！${winner}獲勝🎉`);
+    const isMe=(B.mode==='cpu'&&winnerIdx===1)||(B.mode!=='cpu'&&winnerIdx===B.myPlayer);
+    setTimeout(()=>showResult(winnerIdx,winner,loser,isMe,`${loser}取走了最後一顆石頭。`),700);return;
+  }
+  B.currentPlayer=B.currentPlayer===1?2:1;bRenderStones();bUpdateStatus();
+  if(B.mode==='cpu'&&B.currentPlayer===2)setTimeout(bCpuTurn,600+Math.random()*700);
+  else if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)startRoomPolling(B.roomCode,room=>{const mv=room.moves||[];if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});
+}
+function bCpuTurn(){if(B.gameOver)return;const t=bCalcMove();setTimeout(()=>bApplyMove(2,t,true),200);}
+function bCalcMove(){const k=B.maxTake+1,s=B.stones;if(B.cpuDiff==='easy'&&Math.random()<0.45)return bOptimal(s,k);if(B.cpuDiff==='easy'){const max=Math.min(B.maxTake,s===1?1:s-1);return Math.floor(Math.random()*max)+1;}return bOptimal(s,k);}
+function bOptimal(s,k){if(s===1)return 1;const r=s%k;if(r===1){const max=Math.min(B.maxTake,s-1);return Math.floor(Math.random()*max)+1;}let t=r===0?k-1:r-1;return Math.max(1,Math.min(t,B.maxTake,s-1));}
+function bachetCreateRoom(){
+  const hostName=document.getElementById('b-host-name').value.trim()||'房主',stones=+document.getElementById('b-room-stones').value,maxTake=+document.getElementById('b-room-max').value,firstPlayer=resolveFirst(document.getElementById('b-room-first').value);
+  const code=uniqueCode();const rooms=getRooms();
+  rooms[code]={code,game:'bachet',hostName,stones,maxTake,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  CUR.roomCode=code;B.roomCode=code;
+  document.getElementById('b-room-code-display').textContent=code;
+  document.getElementById('bcreate-s1').classList.remove('active');document.getElementById('bcreate-s2').classList.add('active');
+  startRoomPolling(code,room=>{if(room.guest){stopPolling();_bachetStart({game:'bachet',mode:'host',hostName,guestName:room.guestName,stones,maxTake,myPlayer:1,roomCode:code,firstPlayer});}});
+}
+function bachetCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('bcreate-s1').classList.add('active');document.getElementById('bcreate-s2').classList.remove('active');showPanel('panel-home');}
+function bachetJoinRoom(){
+  const guestName=document.getElementById('b-guest-name').value.trim()||'訪客',code=document.getElementById('b-join-code').value.trim().toUpperCase();
+  const err=document.getElementById('b-join-err');err.style.display='none';
+  if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
+  const rooms=getRooms(),room=rooms[code];
+  if(!room||room.game!=='bachet'){err.textContent='找不到此Bachet房間';err.style.display='block';return;}
+  if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
+  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  _bachetStart({game:'bachet',mode:'guest',hostName:room.hostName,guestName,name:guestName,stones:room.stones,maxTake:room.maxTake,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
-function playAgain() {
-  document.getElementById('result-overlay').classList.remove('show');
-  // FIX: properly clean up then restart
-  stopPolling();
-  cleanupRoom();
+// ============================================================
+//  COUNT21
+// ============================================================
+const C={current:0,target:21,maxSay:2,currentPlayer:1,p1Name:'玩家',p2Name:'電腦',mode:null,myPlayer:1,cpuDiff:'hard',roomCode:null,lastSeen:0,gameOver:false};
+function count21BeginCpu(){_count21Start({game:'count21',mode:'cpu',name:document.getElementById('c-cpu-name').value.trim()||'玩家',target:+document.getElementById('c-target').value,maxSay:+document.getElementById('c-max-say').value,diff:document.getElementById('c-cpu-diff').value,firstSel:document.getElementById('c-cpu-first').value});}
+function _count21Start(s){
+  stopPolling();CUR.game='count21';CUR.lastSettings=s;
+  C.mode=s.mode;C.target=s.target;C.maxSay=s.maxSay;C.cpuDiff=s.diff||'hard';
+  C.p1Name=s.name||s.hostName||'玩家';C.p2Name=C.mode==='cpu'?`電腦（${C.cpuDiff==='hard'?'最優演算法':'隨機走法'}）`:(s.guestName||'訪客');
+  C.myPlayer=s.myPlayer||1;C.gameOver=false;C.roomCode=s.roomCode||null;C.current=0;
+  C.currentPlayer=s.firstPlayer||resolveFirst(s.firstSel||'player');
+  _count21InitUI();showPanel('panel-count21-game');
+  document.getElementById('count21-game-label').textContent=`🔢 21點報數（目標:${C.target}）`;
+  if(C.mode==='cpu'&&C.currentPlayer===2){cUpdateStatus();setTimeout(cCpuTurn,900);}
+  else cUpdateStatus();
+  if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer){startRoomPolling(C.roomCode,room=>{const mv=room.moves||[];if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});}
+}
+function _count21InitUI(){
+  document.getElementById('c-p1-name').textContent=C.p1Name;document.getElementById('c-p2-name').textContent=C.p2Name;
+  document.getElementById('c-log').innerHTML='';document.getElementById('c-track').innerHTML='';document.getElementById('c-count').textContent='0';
+  cBuildSayBtns();addLog('c-log','sys',`開始！從1報到${C.target}，每次報1~${C.maxSay}個。說到${C.target}者輸。`);cUpdateStatus();
+}
+function cBuildSayBtns(){
+  const c=document.getElementById('c-say-btns');c.innerHTML='';
+  for(let i=1;i<=C.maxSay;i++){
+    const btn=document.createElement('button');btn.className='say-btn';btn.id='csay-'+i;
+    const nums=Array.from({length:i},(_,j)=>C.current+j+1);
+    btn.innerHTML=`${nums.join(',')}${i>1?`<span class="lbl">報${i}個</span>`:''}`;
+    btn.onclick=()=>cPlayerSay(i);c.appendChild(btn);
+  }
+}
+function cUpdateStatus(){
+  const isMyTurn=C.mode==='cpu'?C.currentPlayer===1:C.currentPlayer===C.myPlayer;
+  updatePlayerTags('c-p1-tag','c-p2-tag',C.currentPlayer);
+  if(C.gameOver){setStatusDot('c-status-dot','over');document.getElementById('c-status-text').textContent='遊戲結束';document.getElementById('c-status-sub').textContent='';cSetBtns(false);return;}
+  const curName=C.currentPlayer===1?C.p1Name:C.p2Name;
+  cBuildSayBtns();
+  if(isMyTurn){
+    setStatusDot('c-status-dot','your-turn');document.getElementById('c-status-text').textContent='你的回合';
+    document.getElementById('c-status-sub').textContent=`目前${C.current}，可報${C.current+1}${C.maxSay>1?`~${Math.min(C.current+C.maxSay,C.target)}`:''}`;
+    cSetBtns(true);for(let i=1;i<=C.maxSay;i++){const btn=document.getElementById('csay-'+i);if(btn)btn.disabled=C.current+i>C.target;}
+  }else{
+    setStatusDot('c-status-dot','waiting');document.getElementById('c-status-text').textContent=`${curName} 的回合`;
+    document.getElementById('c-status-sub').textContent=C.mode==='cpu'?'電腦計算中…':'等待對手…';cSetBtns(false);
+  }
+}
+function cSetBtns(e){for(let i=1;i<=C.maxSay;i++){const b=document.getElementById('csay-'+i);if(b)b.disabled=!e;}}
+function cPlayerSay(count){
+  if(C.gameOver)return;if(C.mode==='cpu'&&C.currentPlayer!==1)return;if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)return;
+  const nums=Array.from({length:count},(_,i)=>C.current+i+1);if(nums[nums.length-1]>C.target)return;
+  if(C.mode!=='cpu'){const rooms=getRooms();const room=rooms[C.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:C.myPlayer,nums});saveRooms(rooms);C.lastSeen=room.moves.length;}
+  cApplyMove(C.myPlayer,nums,true);
+}
+function cApplyMove(player,nums,animate){
+  const name=player===1?C.p1Name:C.p2Name;addLog('c-log',player===1?'p1':'p2',`${name} 報了：${nums.join(', ')}`);
+  const track=document.getElementById('c-track');
+  nums.forEach(n=>{const el=document.createElement('div');el.className='track-num '+(player===1?'p1':'p2')+(n===C.target?' target':'');el.textContent=n;if(animate){el.style.transform='scale(0)';track.appendChild(el);requestAnimationFrame(()=>{el.style.transition='transform 0.2s';el.style.transform='scale(1)';});}else track.appendChild(el);});
+  C.current=nums[nums.length-1];document.getElementById('c-count').textContent=C.current;
+  if(C.current===C.target){
+    C.gameOver=true;const loser=name,winnerIdx=player===1?2:1,winner=winnerIdx===1?C.p1Name:C.p2Name;
+    cUpdateStatus();addLog('c-log','sys',`${loser}說到了${C.target}！${winner}獲勝🎉`);
+    const isMe=(C.mode==='cpu'&&winnerIdx===1)||(C.mode!=='cpu'&&winnerIdx===C.myPlayer);
+    setTimeout(()=>showResult(winnerIdx,winner,loser,isMe,`${loser}說到了${C.target}。`),700);return;
+  }
+  C.currentPlayer=C.currentPlayer===1?2:1;cUpdateStatus();
+  if(C.mode==='cpu'&&C.currentPlayer===2)setTimeout(cCpuTurn,600+Math.random()*600);
+  else if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)startRoomPolling(C.roomCode,room=>{const mv=room.moves||[];if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});
+}
+function cCpuTurn(){if(C.gameOver)return;setTimeout(()=>cApplyMove(2,cCalcMove(),true),250);}
+function cCalcMove(){
+  const k=C.maxSay+1,t=C.target,cur=C.current;
+  if(C.cpuDiff==='easy'&&Math.random()<0.45)return cOptimal(k,t,cur);
+  if(C.cpuDiff==='easy'){const max=Math.min(C.maxSay,t-cur);const cnt=Math.floor(Math.random()*max)+1;return Array.from({length:cnt},(_,i)=>cur+i+1);}
+  return cOptimal(k,t,cur);
+}
+function cOptimal(k,t,cur){
+  const remaining=t-cur;if(remaining%k===0)return[cur+1];
+  const cnt=Math.min(remaining%k,C.maxSay);return Array.from({length:cnt||1},(_,i)=>cur+i+1);
+}
+function count21CreateRoom(){
+  const hostName=document.getElementById('c-host-name').value.trim()||'房主',target=+document.getElementById('c-room-target').value,maxSay=+document.getElementById('c-room-max').value,firstPlayer=resolveFirst(document.getElementById('c-room-first').value);
+  const code=uniqueCode();const rooms=getRooms();
+  rooms[code]={code,game:'count21',hostName,target,maxSay,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  CUR.roomCode=code;C.roomCode=code;document.getElementById('c-room-code-display').textContent=code;
+  document.getElementById('ccreate-s1').classList.remove('active');document.getElementById('ccreate-s2').classList.add('active');
+  startRoomPolling(code,room=>{if(room.guest){stopPolling();_count21Start({game:'count21',mode:'host',hostName,guestName:room.guestName,target,maxSay,myPlayer:1,roomCode:code,firstPlayer});}});
+}
+function count21CancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ccreate-s1').classList.add('active');document.getElementById('ccreate-s2').classList.remove('active');showPanel('panel-home');}
+function count21JoinRoom(){
+  const guestName=document.getElementById('c-guest-name').value.trim()||'訪客',code=document.getElementById('c-join-code').value.trim().toUpperCase();
+  const err=document.getElementById('c-join-err');err.style.display='none';
+  if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
+  const rooms=getRooms(),room=rooms[code];
+  if(!room||room.game!=='count21'){err.textContent='找不到此21點房間';err.style.display='block';return;}
+  if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
+  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  _count21Start({game:'count21',mode:'guest',hostName:room.hostName,guestName,name:guestName,target:room.target,maxSay:room.maxSay,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
+}
 
-  if (G.mode === 'ai' && G.lastSettings) {
-    // Restore AI settings and replay without going back to menu
-    const s = G.lastSettings;
-    document.getElementById('ai-player-name').value = s.name;
-    document.getElementById('ai-stones').value      = s.stones;
-    document.getElementById('ai-max-take').value    = s.maxTake;
-    document.getElementById('ai-difficulty').value  = s.diff;
-    document.getElementById('ai-first').value       = s.firstSel;
-    beginAIGame();
+// ============================================================
+//  CHOMP
+// ============================================================
+const CH={rows:4,cols:5,board:null,currentPlayer:1,p1Name:'玩家',p2Name:'電腦',mode:null,myPlayer:1,cpuDiff:'hard',roomCode:null,lastSeen:0,gameOver:false};
+function chompBeginCpu(){const sz=document.getElementById('ch-size').value.split('x');_chompStart({game:'chomp',mode:'cpu',name:document.getElementById('ch-cpu-name').value.trim()||'玩家',cols:+sz[0],rows:+sz[1],diff:document.getElementById('ch-cpu-diff').value,firstSel:document.getElementById('ch-cpu-first').value});}
+function _chompStart(s){
+  stopPolling();CUR.game='chomp';CUR.lastSettings=s;
+  CH.mode=s.mode;CH.rows=s.rows;CH.cols=s.cols;CH.cpuDiff=s.diff||'hard';
+  CH.p1Name=s.name||s.hostName||'玩家';CH.p2Name=CH.mode==='cpu'?`電腦（${CH.cpuDiff==='hard'?'最優演算法':'隨機走法'}）`:(s.guestName||'訪客');
+  CH.myPlayer=s.myPlayer||1;CH.gameOver=false;CH.roomCode=s.roomCode||null;
+  CH.board=Array.from({length:CH.rows},()=>Array(CH.cols).fill(true));
+  CH.currentPlayer=s.firstPlayer||resolveFirst(s.firstSel||'player');
+  _chompInitUI();showPanel('panel-chomp-game');
+  document.getElementById('chomp-game-label').textContent=`🍫 Chomp (${CH.cols}×${CH.rows})`;
+  if(CH.mode==='cpu'&&CH.currentPlayer===2){chUpdateStatus();setTimeout(chCpuTurn,900);}
+  else chUpdateStatus();
+  if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer){startRoomPolling(CH.roomCode,room=>{const mv=room.moves||[];if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});}
+}
+function _chompInitUI(){
+  document.getElementById('ch-p1-name').textContent=CH.p1Name;document.getElementById('ch-p2-name').textContent=CH.p2Name;
+  document.getElementById('ch-log').innerHTML='';addLog('ch-log','sys',`開始！點擊格子，該格及右上方全被吃掉。左下角☠️是毒格！`);chRenderBoard();chUpdateStatus();
+}
+function chRenderBoard(){
+  const board=document.getElementById('ch-board');board.innerHTML='';
+  for(let r=CH.rows-1;r>=0;r--){
+    const row=document.createElement('div');row.className='chomp-row';
+    for(let c=0;c<CH.cols;c++){
+      const cell=document.createElement('div'),alive=CH.board[r][c];
+      if(r===0&&c===0){cell.className=alive?'choc poison':'choc eaten';cell.textContent=alive?'☠️':'';}
+      else{cell.className=alive?'choc alive':'choc eaten';cell.textContent=alive?'🟫':'';}
+      if(alive){const cr=r,cc=c;cell.onclick=()=>chPlayerClick(cr,cc);}
+      row.appendChild(cell);
+    }
+    board.appendChild(row);
+  }
+}
+function chUpdateStatus(){
+  const isMyTurn=CH.mode==='cpu'?CH.currentPlayer===1:CH.currentPlayer===CH.myPlayer;
+  updatePlayerTags('ch-p1-tag','ch-p2-tag',CH.currentPlayer);
+  if(CH.gameOver){setStatusDot('ch-status-dot','over');document.getElementById('ch-status-text').textContent='遊戲結束';document.getElementById('ch-status-sub').textContent='';return;}
+  const curName=CH.currentPlayer===1?CH.p1Name:CH.p2Name;
+  if(isMyTurn){setStatusDot('ch-status-dot','your-turn');document.getElementById('ch-status-text').textContent='你的回合';document.getElementById('ch-status-sub').textContent='點擊格子吃巧克力';}
+  else{setStatusDot('ch-status-dot','waiting');document.getElementById('ch-status-text').textContent=`${curName} 的回合`;document.getElementById('ch-status-sub').textContent=CH.mode==='cpu'?'電腦計算中…':'等待對手…';}
+  document.getElementById('ch-board').style.pointerEvents=isMyTurn&&!CH.gameOver?'auto':'none';
+}
+function chPlayerClick(r,c){
+  if(CH.gameOver)return;if(CH.mode==='cpu'&&CH.currentPlayer!==1)return;if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)return;if(!CH.board[r][c])return;
+  if(CH.mode!=='cpu'){const rooms=getRooms();const room=rooms[CH.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:CH.myPlayer,r,c});saveRooms(rooms);CH.lastSeen=room.moves.length;}
+  chApplyMove(CH.myPlayer,r,c,true);
+}
+function chApplyMove(player,r,c,animate){
+  const name=player===1?CH.p1Name:CH.p2Name;addLog('ch-log',player===1?'p1':'p2',`${name} 吃了 (R${r+1},C${c+1}) 及右上方格`);
+  for(let rr=r;rr<CH.rows;rr++)for(let cc=c;cc<CH.cols;cc++)CH.board[rr][cc]=false;
+  let aliveNonPoison=false;
+  for(let rr=0;rr<CH.rows;rr++)for(let cc=0;cc<CH.cols;cc++)if(CH.board[rr][cc]&&!(rr===0&&cc===0))aliveNonPoison=true;
+  chRenderBoard();
+  if(!aliveNonPoison){
+    CH.gameOver=true;const winnerIdx=player,winner=winnerIdx===1?CH.p1Name:CH.p2Name,loserIdx=winnerIdx===1?2:1,loser=loserIdx===1?CH.p1Name:CH.p2Name;
+    chUpdateStatus();addLog('ch-log','sys',`只剩毒格！${loser}被迫吃下，${winner}獲勝🎉`);
+    const isMe=(CH.mode==='cpu'&&winnerIdx===1)||(CH.mode!=='cpu'&&winnerIdx===CH.myPlayer);
+    setTimeout(()=>showResult(winnerIdx,winner,loser,isMe,`${loser}被迫吃下毒格☠️`),700);return;
+  }
+  CH.currentPlayer=CH.currentPlayer===1?2:1;chUpdateStatus();
+  if(CH.mode==='cpu'&&CH.currentPlayer===2)setTimeout(chCpuTurn,700+Math.random()*800);
+  else if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)startRoomPolling(CH.roomCode,room=>{const mv=room.moves||[];if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});
+}
+function chCpuTurn(){if(CH.gameOver)return;const m=chCalcMove();setTimeout(()=>chApplyMove(2,m.r,m.c,true),300);}
+function chCalcMove(){if(CH.cpuDiff==='easy'&&Math.random()<0.5)return chRandomMove();return chSmartMove();}
+function chRandomMove(){const moves=[];for(let r=0;r<CH.rows;r++)for(let c=0;c<CH.cols;c++)if(CH.board[r][c]&&!(r===0&&c===0))moves.push({r,c});return moves[Math.floor(Math.random()*moves.length)]||{r:0,c:0};}
+function chSmartMove(){
+  const memo={};
+  function isLosing(board){
+    const k=board.map(row=>row.map(v=>v?1:0).join('')).join('|');
+    if(memo[k]!==undefined)return memo[k];
+    let hasNonPoison=false;
+    for(let r=0;r<board.length;r++)for(let c=0;c<board[r].length;c++)if(board[r][c]&&!(r===0&&c===0))hasNonPoison=true;
+    if(!hasNonPoison){memo[k]=true;return true;}
+    for(let r=0;r<board.length;r++){
+      for(let c=0;c<board[r].length;c++){
+        if(!board[r][c]||r===0&&c===0)continue;
+        const saved=board.map(row=>[...row]);
+        for(let rr=r;rr<board.length;rr++)for(let cc=c;cc<board[rr].length;cc++)board[rr][cc]=false;
+        const opp=isLosing(board);
+        for(let rr=0;rr<board.length;rr++)for(let cc=0;cc<board[rr].length;cc++)board[rr][cc]=saved[rr][cc];
+        if(opp){memo[k]=false;return false;}
+      }
+    }
+    memo[k]=true;return true;
+  }
+  const board=CH.board.map(row=>[...row]);
+  for(let r=0;r<CH.rows;r++){
+    for(let c=0;c<CH.cols;c++){
+      if(!board[r][c]||r===0&&c===0)continue;
+      const saved=board.map(row=>[...row]);
+      for(let rr=r;rr<board.length;rr++)for(let cc=c;cc<board[rr].length;cc++)board[rr][cc]=false;
+      const opp=isLosing(board);
+      for(let rr=0;rr<board.length;rr++)for(let cc=0;cc<board[rr].length;cc++)board[rr][cc]=saved[rr][cc];
+      if(opp)return{r,c};
+    }
+  }
+  return chRandomMove();
+}
+function chompCreateRoom(){
+  const hostName=document.getElementById('ch-host-name').value.trim()||'房主',sz=document.getElementById('ch-room-size').value.split('x'),cols=+sz[0],rows=+sz[1],firstPlayer=resolveFirst(document.getElementById('ch-room-first').value);
+  const code=uniqueCode();const rooms=getRooms();
+  rooms[code]={code,game:'chomp',hostName,cols,rows,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  CUR.roomCode=code;CH.roomCode=code;document.getElementById('ch-room-code-display').textContent=code;
+  document.getElementById('chcreate-s1').classList.remove('active');document.getElementById('chcreate-s2').classList.add('active');
+  startRoomPolling(code,room=>{if(room.guest){stopPolling();_chompStart({game:'chomp',mode:'host',hostName,guestName:room.guestName,cols,rows,myPlayer:1,roomCode:code,firstPlayer});}});
+}
+function chompCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('chcreate-s1').classList.add('active');document.getElementById('chcreate-s2').classList.remove('active');showPanel('panel-home');}
+function chompJoinRoom(){
+  const guestName=document.getElementById('ch-guest-name').value.trim()||'訪客',code=document.getElementById('ch-join-code').value.trim().toUpperCase();
+  const err=document.getElementById('ch-join-err');err.style.display='none';
+  if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
+  const rooms=getRooms(),room=rooms[code];
+  if(!room||room.game!=='chomp'){err.textContent='找不到此Chomp房間';err.style.display='block';return;}
+  if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
+  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  _chompStart({game:'chomp',mode:'guest',hostName:room.hostName,guestName,name:guestName,cols:room.cols,rows:room.rows,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
+}
+
+// ============================================================
+//  NIM 多堆版
+// ============================================================
+const N={heaps:[],currentPlayer:1,p1Name:'玩家',p2Name:'電腦',mode:null,myPlayer:1,cpuDiff:'hard',
+  roomCode:null,lastSeen:0,gameOver:false,selectedHeap:-1};
+
+function nimBeginCpu(){
+  const numHeaps=+document.getElementById('n-heaps').value;
+  const maxH=+document.getElementById('n-max-per-heap').value;
+  const heaps=Array.from({length:numHeaps},()=>Math.floor(Math.random()*(maxH-1))+1);
+  _nimStart({game:'nim',mode:'cpu',name:document.getElementById('n-cpu-name').value.trim()||'玩家',
+    heaps,diff:document.getElementById('n-cpu-diff').value,firstSel:document.getElementById('n-cpu-first').value});
+}
+function _nimStart(s){
+  stopPolling();CUR.game='nim';CUR.lastSettings={...s};
+  N.mode=s.mode;N.heaps=[...s.heaps];N.cpuDiff=s.diff||'hard';
+  N.p1Name=s.name||s.hostName||'玩家';N.p2Name=N.mode==='cpu'?`電腦（${N.cpuDiff==='hard'?'最優演算法':'隨機走法'}）`:(s.guestName||'訪客');
+  N.myPlayer=s.myPlayer||1;N.gameOver=false;N.roomCode=s.roomCode||null;N.selectedHeap=-1;
+  N.currentPlayer=s.firstPlayer||resolveFirst(s.firstSel||'player');
+  _nimInitUI();showPanel('panel-nim-game');
+  document.getElementById('nim-game-label').textContent='⚡ Nim 多堆版'+(N.mode!=='cpu'?(N.myPlayer===1?' (房主)':' (訪客)'):'');
+  if(N.mode==='cpu'&&N.currentPlayer===2){nUpdateStatus();setTimeout(nCpuTurn,900);}
+  else nUpdateStatus();
+  if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer){startRoomPolling(N.roomCode,room=>{const mv=room.moves||[];if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});}
+}
+function _nimInitUI(){
+  document.getElementById('n-p1-name').textContent=N.p1Name;
+  document.getElementById('n-p2-name').textContent=N.p2Name;
+  document.getElementById('n-log').innerHTML='';
+  addLog('n-log','sys',`開始！${N.heaps.length} 堆石頭 [${N.heaps.join(', ')}]。每次從一堆取任意數，取最後一顆者輸（Misère）。`);
+  nRenderHeaps();nRenderTakeArea();nUpdateXor();nUpdateStatus();
+}
+function nRenderHeaps(){
+  const d=document.getElementById('n-heaps-display');d.innerHTML='';
+  N.heaps.forEach((cnt,i)=>{
+    const col=document.createElement('div');col.className='heap-col';
+    const lbl=document.createElement('div');lbl.className='heap-label';lbl.textContent=`堆${i+1}`;
+    const stones=document.createElement('div');stones.className='heap-stones';
+    for(let j=0;j<Math.min(cnt,15);j++){const s=document.createElement('div');s.className='heap-stone';stones.appendChild(s);}
+    if(cnt>15){const m=document.createElement('span');m.style.cssText='font-size:10px;color:var(--text-dim)';m.textContent=`+${cnt-15}`;stones.appendChild(m);}
+    const countEl=document.createElement('div');countEl.className='heap-count';countEl.textContent=cnt;
+    col.appendChild(lbl);col.appendChild(stones);col.appendChild(countEl);
+    // highlight selected heap
+    if(i===N.selectedHeap) col.style.cssText='outline:2px solid var(--accent4);border-radius:10px;padding:6px;';
+    d.appendChild(col);
+  });
+}
+function nUpdateXor(){
+  const xs=N.heaps.reduce((a,b)=>a^b,0);
+  const el=document.getElementById('n-xor-val');
+  el.textContent=xs;el.className='nim-xor-val '+(xs===0?'zero':'nonzero');
+}
+function nRenderTakeArea(){
+  const area=document.getElementById('n-take-area');area.innerHTML='';
+  const isMyTurn=N.mode==='cpu'?N.currentPlayer===1:N.currentPlayer===N.myPlayer;
+  if(!isMyTurn||N.gameOver){document.getElementById('n-select-hint').textContent='';return;}
+  // Step 1: pick heap
+  if(N.selectedHeap===-1){
+    document.getElementById('n-select-hint').textContent='第一步：選擇要取石頭的堆';
+    N.heaps.forEach((cnt,i)=>{
+      if(cnt===0)return;
+      const btn=document.createElement('button');btn.className='heap-btn';
+      btn.textContent=`堆${i+1} (${cnt}顆)`;
+      btn.onclick=()=>{N.selectedHeap=i;nRenderHeaps();nRenderTakeArea();};
+      area.appendChild(btn);
+    });
   } else {
-    resetCreateSteps();
-    showPanel('panel-home');
+    // Step 2: pick how many
+    document.getElementById('n-select-hint').textContent=`第二步：從堆${N.selectedHeap+1}（${N.heaps[N.selectedHeap]}顆）取幾顆？`;
+    const btn0=document.createElement('button');btn0.className='heap-btn';btn0.textContent='← 重選堆';
+    btn0.onclick=()=>{N.selectedHeap=-1;nRenderHeaps();nRenderTakeArea();};area.appendChild(btn0);
+    const maxTake=N.heaps[N.selectedHeap];
+    // If this is the LAST non-empty heap and only 1 stone left in it, forced move
+    const nonEmpty=N.heaps.filter(h=>h>0).length;
+    for(let t=1;t<=maxTake;t++){
+      // Misère: can't take all from last heap unless forced (1 stone)
+      const wouldClearLast=(nonEmpty===1&&t===maxTake&&maxTake>1);
+      const btn=document.createElement('button');btn.className='heap-btn';
+      btn.textContent=`取 ${t} 顆`;
+      if(wouldClearLast) btn.disabled=true;
+      btn.onclick=()=>nPlayerTake(N.selectedHeap,t);
+      area.appendChild(btn);
+    }
   }
 }
-
-function goHome() {
-  document.getElementById('result-overlay').classList.remove('show');
-  stopPolling();
-  cleanupRoom();
-  resetCreateSteps();
-  G.gameOver = false;
-  G.mode = null;
-  showPanel('panel-home');
-}
-
-// FIX: cleanupRoom handles BOTH host and guest cleanup
-function cleanupRoom() {
-  if (!G.roomCode) return;
-  const rooms = getRooms();
-  if (rooms[G.roomCode]) {
-    delete rooms[G.roomCode];
-    saveRooms(rooms);
+function nUpdateStatus(){
+  const isMyTurn=N.mode==='cpu'?N.currentPlayer===1:N.currentPlayer===N.myPlayer;
+  updatePlayerTags('n-p1-tag','n-p2-tag',N.currentPlayer);
+  if(N.gameOver){setStatusDot('n-status-dot','over');document.getElementById('n-status-text').textContent='遊戲結束';document.getElementById('n-status-sub').textContent='';return;}
+  const curName=N.currentPlayer===1?N.p1Name:N.p2Name;
+  if(isMyTurn){
+    setStatusDot('n-status-dot','your-turn');document.getElementById('n-status-text').textContent='你的回合';
+    const xs=N.heaps.reduce((a,b)=>a^b,0);
+    document.getElementById('n-status-sub').textContent=xs===0?'⚠️ 你在必輸位置（Nim-sum=0）':'✅ 你在必贏位置！找到讓 Nim-sum=0 的走法';
+  } else {
+    setStatusDot('n-status-dot','waiting');document.getElementById('n-status-text').textContent=`${curName} 的回合`;
+    document.getElementById('n-status-sub').textContent=N.mode==='cpu'?'電腦計算中…':'等待對手…';
   }
-  G.roomCode = null;
+}
+function nPlayerTake(heapIdx,take){
+  if(N.gameOver)return;
+  if(N.mode==='cpu'&&N.currentPlayer!==1)return;
+  if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)return;
+  if(N.mode!=='cpu'){const rooms=getRooms();const room=rooms[N.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:N.myPlayer,heap:heapIdx,take});saveRooms(rooms);N.lastSeen=room.moves.length;}
+  nApplyMove(N.myPlayer,heapIdx,take,true);
+}
+function nApplyMove(player,heapIdx,take,animate){
+  const name=player===1?N.p1Name:N.p2Name;
+  addLog('n-log',player===1?'p1':'p2',`${name} 從堆${heapIdx+1} 取走了 ${take} 顆（剩 ${N.heaps[heapIdx]-take} 顆）`);
+  N.heaps[heapIdx]-=take;N.selectedHeap=-1;
+  // Misère win: all heaps empty
+  const total=N.heaps.reduce((a,b)=>a+b,0);
+  if(total===0){
+    N.gameOver=true;
+    // Misère: last to take loses
+    const loser=name;const winnerIdx=player===1?2:1;const winner=winnerIdx===1?N.p1Name:N.p2Name;
+    nRenderHeaps();nUpdateXor();nUpdateStatus();
+    addLog('n-log','sys',`${loser} 取走最後一顆！${winner} 獲勝🎉`);
+    const isMe=(N.mode==='cpu'&&winnerIdx===1)||(N.mode!=='cpu'&&winnerIdx===N.myPlayer);
+    setTimeout(()=>showResult(winnerIdx,winner,loser,isMe,`${loser} 取走了最後一顆石頭。`),700);return;
+  }
+  N.currentPlayer=N.currentPlayer===1?2:1;
+  nRenderHeaps();nRenderTakeArea();nUpdateXor();nUpdateStatus();
+  if(N.mode==='cpu'&&N.currentPlayer===2)setTimeout(nCpuTurn,700+Math.random()*600);
+  else if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)startRoomPolling(N.roomCode,room=>{const mv=room.moves||[];if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});
+}
+function nCpuTurn(){if(N.gameOver)return;const m=nCalcMove();setTimeout(()=>nApplyMove(2,m.heap,m.take,true),200);}
+function nCalcMove(){
+  if(N.cpuDiff==='easy'&&Math.random()<0.5)return nRandomMove();
+  return nOptimalMove();
+}
+function nRandomMove(){
+  const valid=[];N.heaps.forEach((h,i)=>{if(h>0)valid.push(i);});
+  const hi=valid[Math.floor(Math.random()*valid.length)];
+  const nonEmpty=N.heaps.filter(h=>h>0).length;
+  const maxT=(nonEmpty===1&&N.heaps[hi]>1)?N.heaps[hi]-1:N.heaps[hi];
+  return{heap:hi,take:Math.floor(Math.random()*maxT)+1};
+}
+function nOptimalMove(){
+  // Misère Nim: if all heaps ≤ 1, want odd number of 1s → make even; else play normal Nim to reach XOR=0
+  const multiHeaps=N.heaps.filter(h=>h>1).length;
+  const nimSum=N.heaps.reduce((a,b)=>a^b,0);
+  if(multiHeaps===0){
+    // all heaps 0 or 1: count ones, want to leave even number
+    const ones=N.heaps.filter(h=>h===1).length;
+    // take 1 from a pile to flip parity
+    const hi=N.heaps.indexOf(1);
+    return{heap:hi,take:1};
+  }
+  // Normal Nim strategy: make nimSum=0
+  if(nimSum===0)return nRandomMove();
+  for(let i=0;i<N.heaps.length;i++){
+    const target=N.heaps[i]^nimSum;
+    if(target<N.heaps[i]){
+      // but check Misère edge: if this would leave all others ≤1, adjust
+      const newHeaps=[...N.heaps];newHeaps[i]=target;
+      const othersMulti=newHeaps.filter(h=>h>1).length;
+      if(othersMulti===0){
+        // about to enter endgame: want odd number of 1s remaining
+        const ones=newHeaps.filter(h=>h===1).length;
+        if(ones%2===0&&target===1)return{heap:i,take:N.heaps[i]-1};
+        if(ones%2===1&&target===0)return{heap:i,take:N.heaps[i]};
+        if(ones%2===0&&target===0){// prefer leaving 1 on this heap
+          if(N.heaps[i]>1)return{heap:i,take:N.heaps[i]-1};
+        }
+      }
+      return{heap:i,take:N.heaps[i]-target};
+    }
+  }
+  return nRandomMove();
+}
+function nimCreateRoom(){
+  const numHeaps=+document.getElementById('n-room-heaps').value;
+  const maxH=+document.getElementById('n-room-max').value;
+  const heaps=Array.from({length:numHeaps},()=>Math.floor(Math.random()*(maxH-1))+1);
+  const hostName=document.getElementById('n-host-name').value.trim()||'房主';
+  const firstPlayer=resolveFirst(document.getElementById('n-room-first').value);
+  const code=uniqueCode();const rooms=getRooms();
+  rooms[code]={code,game:'nim',hostName,heaps,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  CUR.roomCode=code;N.roomCode=code;document.getElementById('n-room-code-display').textContent=code;
+  document.getElementById('ncreate-s1').classList.remove('active');document.getElementById('ncreate-s2').classList.add('active');
+  startRoomPolling(code,room=>{if(room.guest){stopPolling();_nimStart({game:'nim',mode:'host',hostName,guestName:room.guestName,heaps,myPlayer:1,roomCode:code,firstPlayer});}});
+}
+function nimCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ncreate-s1').classList.add('active');document.getElementById('ncreate-s2').classList.remove('active');showPanel('panel-home');}
+function nimJoinRoom(){
+  const guestName=document.getElementById('n-guest-name').value.trim()||'訪客',code=document.getElementById('n-join-code').value.trim().toUpperCase();
+  const err=document.getElementById('n-join-err');err.style.display='none';
+  if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
+  const rooms=getRooms(),room=rooms[code];
+  if(!room||room.game!=='nim'){err.textContent='找不到此Nim房間';err.style.display='block';return;}
+  if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
+  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  _nimStart({game:'nim',mode:'guest',hostName:room.hostName,guestName,name:guestName,heaps:[...room.heaps],myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
-function resetCreateSteps() {
-  document.getElementById('create-step1').classList.add('active');
-  document.getElementById('create-step2').classList.remove('active');
+// ============================================================
+//  WYTHOFF'S GAME
+// ============================================================
+const PHI=(1+Math.sqrt(5))/2;
+const W={heapA:0,heapB:0,maxVal:12,currentPlayer:1,p1Name:'玩家',p2Name:'電腦',
+  mode:null,myPlayer:1,cpuDiff:'hard',roomCode:null,lastSeen:0,gameOver:false};
+
+function wythoffIsLosing(a,b){
+  if(a>b){const t=a;a=b;b=t;}
+  const n=b-a;return Math.floor(n*PHI)===a;
+}
+function wythoffBeginCpu(){
+  const maxV=+document.getElementById('w-max-val').value;
+  // Random non-losing start position
+  let a,b;
+  do{a=Math.floor(Math.random()*maxV)+1;b=Math.floor(Math.random()*maxV)+1;}
+  while(wythoffIsLosing(a,b)||(a===0&&b===0));
+  _wythoffStart({game:'wythoff',mode:'cpu',name:document.getElementById('w-cpu-name').value.trim()||'玩家',
+    heapA:a,heapB:b,maxVal:maxV,diff:document.getElementById('w-cpu-diff').value,
+    firstSel:document.getElementById('w-cpu-first').value});
+}
+function _wythoffStart(s){
+  stopPolling();CUR.game='wythoff';CUR.lastSettings={...s};
+  W.mode=s.mode;W.heapA=s.heapA;W.heapB=s.heapB;W.maxVal=s.maxVal||12;W.cpuDiff=s.diff||'hard';
+  W.p1Name=s.name||s.hostName||'玩家';W.p2Name=W.mode==='cpu'?`電腦（${W.cpuDiff==='hard'?'黃金比例公式':'隨機走法'}）`:(s.guestName||'訪客');
+  W.myPlayer=s.myPlayer||1;W.gameOver=false;W.roomCode=s.roomCode||null;
+  W.currentPlayer=s.firstPlayer||resolveFirst(s.firstSel||'player');
+  _wythoffInitUI();showPanel('panel-wythoff-game');
+  document.getElementById('wythoff-game-label').textContent='φ Wythoff\'s Game'+(W.mode!=='cpu'?(W.myPlayer===1?' (房主)':' (訪客)'):'');
+  if(W.mode==='cpu'&&W.currentPlayer===2){wUpdateStatus();setTimeout(wCpuTurn,900);}
+  else wUpdateStatus();
+  if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer){startRoomPolling(W.roomCode,room=>{const mv=room.moves||[];if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});}
+}
+function _wythoffInitUI(){
+  document.getElementById('w-p1-name').textContent=W.p1Name;
+  document.getElementById('w-p2-name').textContent=W.p2Name;
+  document.getElementById('w-log').innerHTML='';
+  addLog('w-log','sys',`開始！堆A=${W.heapA}，堆B=${W.heapB}。每次可從一堆取任意數，或兩堆取相同數。取走最後一顆者贏（Standard規則）。`);
+  wRenderGrid();wUpdateHeapDisplay();wUpdateStatus();
+}
+function wRenderGrid(){
+  const grid=document.getElementById('w-grid');
+  const size=W.maxVal+1;
+  grid.style.cssText=`display:grid;grid-template-columns:repeat(${size},34px);gap:3px;`;
+  grid.innerHTML='';
+  const isMyTurn=W.mode==='cpu'?W.currentPlayer===1:W.currentPlayer===W.myPlayer;
+  for(let b=W.maxVal;b>=0;b--){
+    for(let a=0;a<=W.maxVal;a++){
+      const cell=document.createElement('div');
+      const isCurrent=(a===W.heapA&&b===W.heapB);
+      const isLosing=wythoffIsLosing(a,b);
+      const isReachable=!W.gameOver&&isMyTurn&&wIsReachable(a,b);
+      if(isCurrent) cell.className='wythoff-cell current';
+      else if(!isReachable&&(a>W.heapA||b>W.heapB)) cell.className='wythoff-cell eaten';
+      else if(isLosing) cell.className='wythoff-cell losing';
+      else cell.className='wythoff-cell alive';
+      cell.textContent=`${a},${b}`;
+      if(isReachable&&!isCurrent){const ca=a,cb=b;cell.onclick=()=>wPlayerMove(ca,cb);}
+      grid.appendChild(cell);
+    }
+  }
+}
+function wIsReachable(a,b){
+  if(a>W.heapA||b>W.heapB) return false;
+  if(a===W.heapA&&b===W.heapB) return false;
+  if(a===W.heapA||b===W.heapB) return true; // take from one heap
+  if(W.heapA-a===W.heapB-b) return true; // take same from both
+  return false;
+}
+function wUpdateHeapDisplay(){
+  document.getElementById('w-heap-a').textContent=W.heapA;
+  document.getElementById('w-heap-b').textContent=W.heapB;
+}
+function wUpdateStatus(){
+  const isMyTurn=W.mode==='cpu'?W.currentPlayer===1:W.currentPlayer===W.myPlayer;
+  updatePlayerTags('w-p1-tag','w-p2-tag',W.currentPlayer);
+  if(W.gameOver){setStatusDot('w-status-dot','over');document.getElementById('w-status-text').textContent='遊戲結束';document.getElementById('w-status-sub').textContent='';return;}
+  const curName=W.currentPlayer===1?W.p1Name:W.p2Name;
+  if(isMyTurn){
+    setStatusDot('w-status-dot','your-turn');document.getElementById('w-status-text').textContent='你的回合';
+    const losing=wythoffIsLosing(W.heapA,W.heapB);
+    document.getElementById('w-status-sub').textContent=losing?'⚠️ 你在必輸位置（紅色格子）':'✅ 你在必贏位置！找到紅色格子走過去';
+  } else {
+    setStatusDot('w-status-dot','waiting');document.getElementById('w-status-text').textContent=`${curName} 的回合`;
+    document.getElementById('w-status-sub').textContent=W.mode==='cpu'?'電腦計算中…':'等待對手…';
+  }
+}
+function wPlayerMove(newA,newB){
+  if(W.gameOver)return;
+  if(W.mode==='cpu'&&W.currentPlayer!==1)return;
+  if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)return;
+  if(!wIsReachable(newA,newB))return;
+  if(W.mode!=='cpu'){const rooms=getRooms();const room=rooms[W.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:W.myPlayer,newA,newB});saveRooms(rooms);W.lastSeen=room.moves.length;}
+  wApplyMove(W.myPlayer,newA,newB,true);
+}
+function wApplyMove(player,newA,newB,animate){
+  const name=player===1?W.p1Name:W.p2Name;
+  const takenA=W.heapA-newA,takenB=W.heapB-newB;
+  let moveDesc=takenA>0&&takenB>0?`兩堆各取${takenA}顆`:takenA>0?`堆A取${takenA}顆`:`堆B取${takenB}顆`;
+  addLog('w-log',player===1?'p1':'p2',`${name} ${moveDesc} → (${newA}, ${newB})`);
+  W.heapA=newA;W.heapB=newB;
+  if(W.heapA===0&&W.heapB===0){
+    W.gameOver=true;
+    // Standard: last to take WINS
+    const winner=name;const winnerIdx=player;const loserIdx=player===1?2:1;const loser=loserIdx===1?W.p1Name:W.p2Name;
+    wRenderGrid();wUpdateHeapDisplay();wUpdateStatus();
+    addLog('w-log','sys',`${winner} 取走最後一顆！${winner} 獲勝🎉`);
+    const isMe=(W.mode==='cpu'&&winnerIdx===1)||(W.mode!=='cpu'&&winnerIdx===W.myPlayer);
+    setTimeout(()=>showResult(winnerIdx,winner,loser,isMe,`${winner} 取走了最後的石頭。`),700);return;
+  }
+  W.currentPlayer=W.currentPlayer===1?2:1;
+  wRenderGrid();wUpdateHeapDisplay();wUpdateStatus();
+  if(W.mode==='cpu'&&W.currentPlayer===2)setTimeout(wCpuTurn,700+Math.random()*700);
+  else if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)startRoomPolling(W.roomCode,room=>{const mv=room.moves||[];if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});
+}
+function wCpuTurn(){if(W.gameOver)return;const m=wCalcMove();setTimeout(()=>wApplyMove(2,m.a,m.b,true),300);}
+function wCalcMove(){
+  if(W.cpuDiff==='easy'&&Math.random()<0.5)return wRandomMove();
+  return wOptimalMove();
+}
+function wRandomMove(){
+  const moves=[];
+  for(let a=0;a<=W.heapA;a++) if(wIsReachable(a,W.heapB)) moves.push({a,b:W.heapB});
+  for(let b=0;b<=W.heapB;b++) if(wIsReachable(W.heapA,b)) moves.push({a:W.heapA,b});
+  const d=Math.min(W.heapA,W.heapB);
+  for(let k=1;k<=d;k++) moves.push({a:W.heapA-k,b:W.heapB-k});
+  return moves[Math.floor(Math.random()*moves.length)]||{a:0,b:W.heapB-1};
+}
+function wOptimalMove(){
+  // Find a move to a losing position for opponent
+  for(let a=0;a<W.heapA;a++) if(wythoffIsLosing(a,W.heapB)) return{a,b:W.heapB};
+  for(let b=0;b<W.heapB;b++) if(wythoffIsLosing(W.heapA,b)) return{a:W.heapA,b};
+  const d=Math.min(W.heapA,W.heapB);
+  for(let k=1;k<=d;k++) if(wythoffIsLosing(W.heapA-k,W.heapB-k)) return{a:W.heapA-k,b:W.heapB-k};
+  return wRandomMove();
+}
+function wythoffCreateRoom(){
+  const maxV=+document.getElementById('w-room-max').value;
+  const hostName=document.getElementById('w-host-name').value.trim()||'房主';
+  let a,b;do{a=Math.floor(Math.random()*maxV)+1;b=Math.floor(Math.random()*maxV)+1;}while(wythoffIsLosing(a,b)||(a===0&&b===0));
+  const firstPlayer=resolveFirst(document.getElementById('w-room-first').value);
+  const code=uniqueCode();const rooms=getRooms();
+  rooms[code]={code,game:'wythoff',hostName,heapA:a,heapB:b,maxVal:maxV,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  CUR.roomCode=code;W.roomCode=code;document.getElementById('w-room-code-display').textContent=code;
+  document.getElementById('wcreate-s1').classList.remove('active');document.getElementById('wcreate-s2').classList.add('active');
+  startRoomPolling(code,room=>{if(room.guest){stopPolling();_wythoffStart({game:'wythoff',mode:'host',hostName,guestName:room.guestName,heapA:a,heapB:b,maxVal:maxV,myPlayer:1,roomCode:code,firstPlayer});}});
+}
+function wythoffCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('wcreate-s1').classList.add('active');document.getElementById('wcreate-s2').classList.remove('active');showPanel('panel-home');}
+function wythoffJoinRoom(){
+  const guestName=document.getElementById('w-guest-name').value.trim()||'訪客',code=document.getElementById('w-join-code').value.trim().toUpperCase();
+  const err=document.getElementById('w-join-err');err.style.display='none';
+  if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
+  const rooms=getRooms(),room=rooms[code];
+  if(!room||room.game!=='wythoff'){err.textContent='找不到此Wythoff房間';err.style.display='block';return;}
+  if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
+  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  _wythoffStart({game:'wythoff',mode:'guest',hostName:room.hostName,guestName,name:guestName,heapA:room.heapA,heapB:room.heapB,maxVal:room.maxVal,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
 // ============================================================
 //  CONFETTI
 // ============================================================
-function launchConfetti() {
-  const canvas = document.getElementById('confetti-canvas');
-  canvas.style.display = 'block';
-  const ctx = canvas.getContext('2d');
-  canvas.width  = window.innerWidth;
-  canvas.height = window.innerHeight;
-
-  const colors = ['#00e5ff','#ff4081','#69ff47','#ffd740','#ea80fc'];
-  const pieces = Array.from({length: 130}, () => ({
-    x: Math.random() * canvas.width,
-    y: Math.random() * -canvas.height * 0.5,
-    r: 4 + Math.random() * 7,
-    dy: 2.5 + Math.random() * 3.5,
-    dx: (Math.random() - 0.5) * 2,
-    tilt: Math.random() * Math.PI,
-    tiltSpeed: (Math.random() - 0.5) * 0.08,
-    color: colors[Math.floor(Math.random() * colors.length)],
-  }));
-
-  let frame = 0;
-  function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    pieces.forEach(p => {
-      ctx.save();
-      ctx.translate(p.x, p.y);
-      ctx.rotate(p.tilt);
-      ctx.beginPath();
-      ctx.fillStyle = p.color;
-      ctx.ellipse(0, 0, p.r, p.r * 0.4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-      p.y    += p.dy;
-      p.x    += p.dx + Math.sin(frame * 0.03 + p.tilt) * 1.2;
-      p.tilt += p.tiltSpeed;
-    });
-    frame++;
-    if (frame < 200) requestAnimationFrame(draw);
-    else { ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = 'none'; }
+function launchConfetti(){
+  const canvas=document.getElementById('confetti-canvas');canvas.style.display='block';
+  const ctx=canvas.getContext('2d');canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const colors=['#00e5ff','#ff4081','#69ff47','#ffd740','#ea80fc'];
+  const pieces=Array.from({length:120},()=>({x:Math.random()*canvas.width,y:Math.random()*-canvas.height*0.5,r:4+Math.random()*7,dy:2.5+Math.random()*3.5,dx:(Math.random()-0.5)*2,tilt:Math.random()*Math.PI,tiltSpeed:(Math.random()-0.5)*0.08,color:colors[Math.floor(Math.random()*colors.length)]}));
+  let frame=0;
+  function draw(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pieces.forEach(p=>{ctx.save();ctx.translate(p.x,p.y);ctx.rotate(p.tilt);ctx.beginPath();ctx.fillStyle=p.color;ctx.ellipse(0,0,p.r,p.r*0.4,0,0,Math.PI*2);ctx.fill();ctx.restore();p.y+=p.dy;p.x+=p.dx+Math.sin(frame*0.03+p.tilt)*1.2;p.tilt+=p.tiltSpeed;});
+    frame++;if(frame<200)requestAnimationFrame(draw);else{ctx.clearRect(0,0,canvas.width,canvas.height);canvas.style.display='none';}
   }
   draw();
 }
 
-// ============================================================
-//  INIT — clean stale rooms
-// ============================================================
-(function init() {
-  const rooms = getRooms();
-  const now   = Date.now();
-  let changed = false;
-  Object.keys(rooms).forEach(k => {
-    if (now - rooms[k].created > 3_600_000) { delete rooms[k]; changed = true; }
-  });
-  if (changed) saveRooms(rooms);
-})();
+// INIT
+(function(){const rooms=getRooms();const now=Date.now();let c=false;Object.keys(rooms).forEach(k=>{if(now-rooms[k].created>3600000){delete rooms[k];c=true;}});if(c)saveRooms(rooms);})();
 </script>
 </body>
 </html>
