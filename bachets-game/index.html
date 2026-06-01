@@ -1,0 +1,1321 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bachet's Game — 巴謝特遊戲</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@300;400;700&display=swap');
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a28;
+    --border: #2a2a40;
+    --accent: #00e5ff;
+    --accent2: #ff4081;
+    --accent3: #69ff47;
+    --text: #e8e8f0;
+    --text-dim: #6a6a8a;
+    --glow: rgba(0,229,255,0.3);
+    --glow2: rgba(255,64,129,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans TC', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    position: relative;
+    z-index: 1;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 32px 20px 60px;
+  }
+
+  header { text-align: center; margin-bottom: 40px; }
+  header .title {
+    font-family: 'Orbitron', monospace;
+    font-size: clamp(28px, 6vw, 52px);
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    filter: drop-shadow(0 0 20px var(--glow));
+    line-height: 1.1;
+  }
+  header .subtitle {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-top: 8px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    margin-bottom: 20px;
+    display: none;
+  }
+  .panel.active { display: block; animation: fadeIn 0.3s ease; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .panel-title {
+    font-family: 'Orbitron', monospace;
+    font-size: 13px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .panel-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    font-family: 'Noto Sans TC', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: var(--surface2);
+    color: var(--text);
+    position: relative;
+    overflow: hidden;
+  }
+  .btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.2s;
+    border-radius: inherit;
+  }
+  .btn:hover::before { opacity: 1; }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0); }
+  .btn-primary { background: var(--accent); border-color: var(--accent); color: #000; }
+  .btn-primary::before { background: rgba(255,255,255,0.15); }
+  .btn-primary:hover { box-shadow: 0 0 24px var(--glow); }
+  .btn-outline { background: transparent; border-color: var(--accent); color: var(--accent); }
+  .btn-outline:hover { background: rgba(0,229,255,0.08); box-shadow: 0 0 16px var(--glow); }
+  .btn-lg { padding: 16px 32px; font-size: 17px; border-radius: 12px; }
+  .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 16px; }
+
+  .input-group { margin-bottom: 16px; }
+  .input-group label {
+    display: block;
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .input-group input, .input-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    color: var(--text);
+    font-size: 15px;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    outline: none;
+    appearance: none;
+  }
+  .input-group input:focus, .input-group select:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,229,255,0.1);
+  }
+
+  .menu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-top: 8px;
+  }
+  @media (max-width: 480px) { .menu-grid { grid-template-columns: 1fr; } }
+
+  .menu-card {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px 20px;
+    cursor: pointer;
+    transition: all 0.25s;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .menu-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    border-radius: 14px 14px 0 0;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+  .menu-card:hover { border-color: var(--accent); transform: translateY(-3px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .menu-card:hover::before { opacity: 1; }
+  .menu-card.cyan::before  { background: var(--accent); }
+  .menu-card.pink::before  { background: var(--accent2); }
+  .menu-card.green::before { background: var(--accent3); }
+  .menu-card.yellow::before { background: #ffd740; }
+  .menu-card .icon { font-size: 36px; margin-bottom: 10px; display: block; }
+  .menu-card .card-title { font-family: 'Orbitron', monospace; font-size: 13px; font-weight: 700; letter-spacing: 0.08em; color: var(--text); }
+  .menu-card .card-desc { font-size: 12px; color: var(--text-dim); margin-top: 6px; line-height: 1.5; }
+
+  #stones-area { text-align: center; margin: 24px 0; }
+
+  .stones-display {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+    min-height: 80px;
+    padding: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+
+  .stone {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #8fd4f8, #1a7aaa);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(0,0,0,0.3);
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .stone.taken {
+    background: radial-gradient(circle at 35% 35%, #ff8a80, #c62828);
+    animation: takePop 0.3s ease;
+  }
+  @keyframes takePop {
+    0%   { transform: scale(1.4); }
+    60%  { transform: scale(0.8); }
+    100% { transform: scale(1); }
+  }
+
+  .stones-count {
+    font-family: 'Orbitron', monospace;
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--accent);
+    line-height: 1;
+    text-shadow: 0 0 30px var(--glow);
+  }
+  .stones-label {
+    font-size: 12px;
+    color: var(--text-dim);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  .take-btns {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 20px 0;
+  }
+
+  .take-btn {
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: 'Orbitron', monospace;
+    font-size: 20px;
+    font-weight: 700;
+    width: 64px;
+    height: 64px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+  }
+  .take-btn span.label { font-family: 'Noto Sans TC', sans-serif; font-size: 10px; font-weight: 400; color: var(--text-dim); letter-spacing: 0.1em; }
+  .take-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    background: rgba(0,229,255,0.1);
+    transform: scale(1.1);
+    box-shadow: 0 0 20px var(--glow);
+    color: var(--accent);
+  }
+  .take-btn:active:not(:disabled) { transform: scale(0.96); }
+  .take-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* FIX: last-stone warning */
+  .last-stone-warning {
+    background: rgba(255,64,129,0.12);
+    border: 1px solid var(--accent2);
+    border-radius: 10px;
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--accent2);
+    text-align: center;
+    margin-bottom: 8px;
+    display: none;
+  }
+  .last-stone-warning.show { display: block; animation: fadeIn 0.2s ease; }
+
+  .status-bar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .status-indicator {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .status-indicator.your-turn { background: var(--accent3); box-shadow: 0 0 10px var(--accent3); animation: pulse 1s ease infinite; }
+  .status-indicator.waiting   { background: #ffd740; box-shadow: 0 0 10px #ffd740; }
+  .status-indicator.over      { background: var(--accent2); box-shadow: 0 0 10px var(--accent2); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+  .status-text { flex: 1; font-size: 15px; font-weight: 700; color: var(--text); }
+  .status-sub  { font-size: 12px; color: var(--text-dim); width: 100%; margin-top: -6px; }
+
+  .players-row { display: flex; gap: 10px; margin-bottom: 16px; }
+  .player-tag {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    text-align: center;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+  .player-tag.active { border-color: var(--accent3); box-shadow: 0 0 12px rgba(105,255,71,0.2); }
+  .player-tag .p-name  { font-size: 14px; font-weight: 700; }
+  .player-tag .p-label { font-size: 11px; color: var(--text-dim); margin-top: 2px; letter-spacing: 0.1em; text-transform: uppercase; }
+
+  .result-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,15,0.85);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    backdrop-filter: blur(4px);
+    display: none;
+  }
+  .result-overlay.show { display: flex; animation: fadeIn 0.3s ease; }
+  .result-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px;
+    text-align: center;
+    max-width: 360px;
+    width: 90%;
+  }
+  .result-box .result-emoji { font-size: 64px; margin-bottom: 12px; display: block; }
+  .result-box .result-title { font-family: 'Orbitron', monospace; font-size: 24px; font-weight: 900; margin-bottom: 8px; }
+  .result-box .result-msg { font-size: 14px; color: var(--text-dim); margin-bottom: 24px; line-height: 1.8; white-space: pre-line; }
+
+  .room-code-box {
+    background: var(--surface2);
+    border: 2px dashed var(--accent);
+    border-radius: 14px;
+    padding: 24px;
+    text-align: center;
+    margin: 16px 0;
+  }
+  .room-code-box .code-label { font-size: 11px; color: var(--text-dim); letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 8px; }
+  .room-code-box .code-val {
+    font-family: 'Orbitron', monospace;
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 0.3em;
+    text-shadow: 0 0 20px var(--glow);
+  }
+  .room-code-box .code-hint { font-size: 12px; color: var(--text-dim); margin-top: 8px; }
+
+  .rules-block {
+    background: var(--surface2);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-top: 8px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.8;
+  }
+  .rules-block strong { color: var(--accent); }
+  .rules-block ul { padding-left: 18px; margin-top: 4px; }
+
+  .game-log {
+    max-height: 120px;
+    overflow-y: auto;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 2;
+  }
+  .game-log .log-entry { border-bottom: 1px solid var(--border); padding: 2px 0; }
+  .game-log .log-entry:last-child { border-bottom: none; }
+  .log-p1  { color: var(--accent); }
+  .log-p2  { color: var(--accent2); }
+  .log-sys { color: #ffd740; }
+
+  .step { display: none; }
+  .step.active { display: block; animation: fadeIn 0.25s ease; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+  .text-dim { color: var(--text-dim); font-size: 13px; }
+  .mt8  { margin-top: 8px; }
+  .mt16 { margin-top: 16px; }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #confetti-canvas {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 200;
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="container">
+
+  <header>
+    <div class="title">BACHET'S GAME</div>
+    <div class="subtitle">巴謝特取石遊戲 &nbsp;·&nbsp; 策略數學博弈</div>
+  </header>
+
+  <!-- HOME -->
+  <div class="panel active" id="panel-home">
+    <div class="panel-title">選擇模式</div>
+    <div class="menu-grid">
+      <div class="menu-card cyan" onclick="startAIGame()">
+        <span class="icon">🤖</span>
+        <div class="card-title">人機對戰</div>
+        <div class="card-desc">挑戰 AI 電腦<br>有簡單/困難兩種難度</div>
+      </div>
+      <div class="menu-card pink" onclick="showPanel('panel-create')">
+        <span class="icon">🏠</span>
+        <div class="card-title">開房間</div>
+        <div class="card-desc">建立房間<br>分享代碼給朋友</div>
+      </div>
+      <div class="menu-card green" onclick="showPanel('panel-join')">
+        <span class="icon">🔗</span>
+        <div class="card-title">加入房間</div>
+        <div class="card-desc">輸入朋友的<br>房間代碼加入</div>
+      </div>
+      <div class="menu-card yellow" onclick="showPanel('panel-rules')">
+        <span class="icon">📖</span>
+        <div class="card-title">遊戲規則</div>
+        <div class="card-desc">了解 Bachet's Game<br>的規則與必勝策略</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI SETUP -->
+  <div class="panel" id="panel-ai-setup">
+    <div class="panel-title">人機對戰設定</div>
+    <div class="input-group">
+      <label>你的名稱</label>
+      <input type="text" id="ai-player-name" placeholder="玩家一" maxlength="16">
+    </div>
+    <div class="input-group">
+      <label>初始石頭數量</label>
+      <select id="ai-stones">
+        <option value="15">15 顆</option>
+        <option value="21" selected>21 顆（經典）</option>
+        <option value="30">30 顆</option>
+        <option value="50">50 顆</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>每次最多可取</label>
+      <select id="ai-max-take">
+        <option value="3" selected>最多 3 顆（經典）</option>
+        <option value="4">最多 4 顆</option>
+        <option value="5">最多 5 顆</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>AI 難度</label>
+      <select id="ai-difficulty">
+        <option value="easy">😊 簡單 — AI 有時會犯錯</option>
+        <option value="hard" selected>😈 困難 — AI 使用最優策略</option>
+      </select>
+    </div>
+    <div class="input-group">
+      <label>先手</label>
+      <select id="ai-first">
+        <option value="player">玩家先手</option>
+        <option value="ai">AI 先手</option>
+        <option value="random">隨機決定</option>
+      </select>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary btn-lg" onclick="beginAIGame()">🚀 開始遊戲</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+
+  <!-- CREATE ROOM -->
+  <div class="panel" id="panel-create">
+    <div class="panel-title">建立房間</div>
+    <div class="step active" id="create-step1">
+      <div class="input-group">
+        <label>你的名稱</label>
+        <input type="text" id="host-name" placeholder="房主暱稱" maxlength="16">
+      </div>
+      <div class="input-group">
+        <label>初始石頭數量</label>
+        <select id="room-stones">
+          <option value="15">15 顆</option>
+          <option value="21" selected>21 顆（經典）</option>
+          <option value="30">30 顆</option>
+          <option value="50">50 顆</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>每次最多可取</label>
+        <select id="room-max-take">
+          <option value="3" selected>最多 3 顆（經典）</option>
+          <option value="4">最多 4 顆</option>
+          <option value="5">最多 5 顆</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label>先手</label>
+        <select id="room-first">
+          <option value="host">房主先手</option>
+          <option value="guest">訪客先手</option>
+          <option value="random">隨機決定</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="createRoom()">🏠 建立房間</button>
+        <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+      </div>
+    </div>
+    <div class="step" id="create-step2">
+      <div class="room-code-box">
+        <div class="code-label">房間代碼</div>
+        <div class="code-val" id="display-room-code">----</div>
+        <div class="code-hint">把這個代碼分享給你的朋友</div>
+      </div>
+      <div class="status-bar" style="margin-top:8px">
+        <span class="spinner"></span>
+        <span class="status-text">等待對手加入…</span>
+      </div>
+      <button class="btn btn-outline btn-sm mt8" onclick="copyRoomCode()">📋 複製代碼</button>
+      <hr class="divider">
+      <button class="btn" onclick="cancelRoom()">❌ 取消房間</button>
+    </div>
+  </div>
+
+  <!-- JOIN ROOM -->
+  <div class="panel" id="panel-join">
+    <div class="panel-title">加入房間</div>
+    <div class="input-group">
+      <label>你的名稱</label>
+      <input type="text" id="guest-name" placeholder="玩家暱稱" maxlength="16">
+    </div>
+    <div class="input-group">
+      <label>房間代碼</label>
+      <input type="text" id="join-code" placeholder="輸入 4 位代碼" maxlength="4"
+        style="letter-spacing:0.3em;font-family:'Orbitron',monospace;font-size:22px;"
+        oninput="this.value=this.value.toUpperCase()">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" onclick="joinRoom()">🔗 加入遊戲</button>
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+    <div id="join-error" class="text-dim mt8" style="color:var(--accent2);display:none"></div>
+  </div>
+
+  <!-- GAME -->
+  <div class="panel" id="panel-game">
+    <div class="panel-title" id="game-mode-label">遊戲中</div>
+
+    <div class="players-row">
+      <div class="player-tag" id="p1-tag">
+        <div class="p-name" id="p1-name">—</div>
+        <div class="p-label">玩家 1</div>
+      </div>
+      <div style="display:flex;align-items:center;color:var(--text-dim);font-size:12px;font-family:'Orbitron',monospace;">VS</div>
+      <div class="player-tag" id="p2-tag">
+        <div class="p-name" id="p2-name">—</div>
+        <div class="p-label">玩家 2</div>
+      </div>
+    </div>
+
+    <div class="status-bar" id="status-bar">
+      <div class="status-indicator" id="status-dot"></div>
+      <div style="flex:1">
+        <div class="status-text" id="status-text">準備中</div>
+        <div class="status-sub"  id="status-sub"></div>
+      </div>
+    </div>
+
+    <div id="stones-area">
+      <div class="stones-display" id="stones-display"></div>
+      <div class="stones-count" id="stones-count">0</div>
+      <div class="stones-label">顆石頭剩餘</div>
+    </div>
+
+    <!-- FIX: last-stone warning shown when only 1 stone remains and it's opponent's forced move -->
+    <div class="last-stone-warning" id="last-stone-warning">
+      ⚠️ 只剩 1 顆！對手必須取走它，你即將獲勝！
+    </div>
+
+    <div class="take-btns" id="take-btns"></div>
+
+    <div class="game-log" id="game-log"></div>
+
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-sm" onclick="goHome()">🏠 回主選單</button>
+    </div>
+  </div>
+
+  <!-- RULES -->
+  <div class="panel" id="panel-rules">
+    <div class="panel-title">遊戲規則</div>
+    <div class="rules-block">
+      <strong>Bachet's Game（取石遊戲）</strong><br>
+      <ul>
+        <li>桌上有 N 顆石頭，兩位玩家輪流取石頭。</li>
+        <li>每次至少取 <strong>1 顆</strong>，最多取 <strong>M 顆</strong>（例如 M=3）。</li>
+        <li><strong>取走最後一顆石頭的人「輸」</strong>（此遊戲採 Misère 規則）。</li>
+      </ul>
+      <hr style="border:none;border-top:1px solid var(--border);margin:12px 0">
+      <strong>必勝策略</strong><br>
+      設 K = M + 1（例如 M=3 時 K=4）：
+      <ul>
+        <li>若剩餘石頭數 mod K = 1，<strong>當前玩家必輸</strong>（已陷入敗局）。</li>
+        <li>否則，取走石頭讓剩餘數 mod K = 1，則<strong>對手必輸</strong>。</li>
+        <li>特例：當只剩 1 顆時，當前玩家被迫取走，即輸。</li>
+      </ul>
+      <em style="font-size:12px">Bachet's Game 由 17 世紀法國數學家 Claude-Gaspard Bachet de Méziriac 命名。</em>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-box">
+    <span class="result-emoji" id="result-emoji">🏆</span>
+    <div class="result-title" id="result-title">勝利！</div>
+    <div class="result-msg"   id="result-msg"></div>
+    <div class="btn-row" style="justify-content:center">
+      <button class="btn btn-primary" onclick="playAgain()">🔄 再玩一局</button>
+      <button class="btn btn-outline" onclick="goHome()">🏠 主選單</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+//  STATE
+// ============================================================
+const G = {
+  mode: null,          // 'ai' | 'host' | 'guest'
+  stones: 0,
+  maxTake: 3,
+  currentPlayer: 1,   // 1 = p1/host, 2 = p2/ai/guest
+  p1Name: '玩家',
+  p2Name: 'AI',
+  aiDifficulty: 'hard',
+  myPlayer: 1,
+  roomCode: null,
+  gameOver: false,
+  pollInterval: null,
+  lastSeen: 0,
+  // snapshot of settings for rematch
+  lastSettings: null,
+};
+
+const ROOMS_KEY = 'bachet_rooms_v2';
+
+function getRooms() {
+  try { return JSON.parse(localStorage.getItem(ROOMS_KEY) || '{}'); } catch { return {}; }
+}
+function saveRooms(r) { localStorage.setItem(ROOMS_KEY, JSON.stringify(r)); }
+
+// ============================================================
+//  NAVIGATION
+// ============================================================
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function startAIGame() { showPanel('panel-ai-setup'); }
+
+// ============================================================
+//  AI GAME
+// ============================================================
+function beginAIGame() {
+  // FIX: clear any leftover polling/timers before starting
+  stopPolling();
+
+  const name   = document.getElementById('ai-player-name').value.trim() || '玩家';
+  const stones  = +document.getElementById('ai-stones').value;
+  const maxTake = +document.getElementById('ai-max-take').value;
+  const diff    = document.getElementById('ai-difficulty').value;
+  const firstSel = document.getElementById('ai-first').value;
+
+  G.mode        = 'ai';
+  G.stones      = stones;
+  G.maxTake     = maxTake;
+  G.p1Name      = name;
+  G.p2Name      = `AI（${diff === 'hard' ? '困難' : '簡單'}）`;
+  G.aiDifficulty = diff;
+  G.myPlayer    = 1;
+  G.gameOver    = false;
+
+  // Save for rematch
+  G.lastSettings = { mode:'ai', name, stones, maxTake, diff, firstSel };
+
+  let first = 1;
+  if (firstSel === 'ai')     first = 2;
+  else if (firstSel === 'random') first = Math.random() < 0.5 ? 1 : 2;
+  G.currentPlayer = first;
+
+  initGameUI();
+  showPanel('panel-game');
+  document.getElementById('game-mode-label').textContent = '人機對戰';
+
+  if (G.currentPlayer === 2) {
+    updateStatus();
+    setTimeout(aiTurn, 900);
+  } else {
+    updateStatus();
+  }
+}
+
+// ============================================================
+//  CREATE ROOM
+// ============================================================
+function generateCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+
+function createRoom() {
+  stopPolling();
+
+  const hostName = document.getElementById('host-name').value.trim() || '房主';
+  const stones   = +document.getElementById('room-stones').value;
+  const maxTake  = +document.getElementById('room-max-take').value;
+  const firstSel = document.getElementById('room-first').value;
+
+  // FIX: determine first player here (host-side) so both sides agree
+  let firstPlayer = 1;
+  if (firstSel === 'guest')  firstPlayer = 2;
+  else if (firstSel === 'random') firstPlayer = Math.random() < 0.5 ? 1 : 2;
+
+  let code;
+  const rooms = getRooms();
+  do { code = generateCode(); } while (rooms[code]);
+
+  rooms[code] = {
+    code,
+    hostName,
+    stones,
+    maxTake,
+    firstPlayer,   // FIX: store resolved first player, not the raw selection
+    guest: false,
+    guestName: null,
+    started: false,
+    moves: [],
+    created: Date.now(),
+  };
+  saveRooms(rooms);
+
+  G.roomCode = code;
+  G.p1Name   = hostName;
+  G.mode     = 'host';
+  G.myPlayer = 1;
+
+  document.getElementById('display-room-code').textContent = code;
+  document.getElementById('create-step1').classList.remove('active');
+  document.getElementById('create-step2').classList.add('active');
+
+  G.pollInterval = setInterval(checkForGuest, 1000);
+}
+
+function checkForGuest() {
+  const rooms = getRooms();
+  const room  = rooms[G.roomCode];
+  if (!room) { stopPolling(); return; }
+  if (room.guest) {
+    stopPolling();
+    startMultiGame(room);
+  }
+}
+
+function cancelRoom() {
+  stopPolling();
+  if (G.roomCode) {
+    const rooms = getRooms();
+    delete rooms[G.roomCode];
+    saveRooms(rooms);
+    G.roomCode = null;
+  }
+  document.getElementById('create-step1').classList.add('active');
+  document.getElementById('create-step2').classList.remove('active');
+  showPanel('panel-home');
+}
+
+function copyRoomCode() {
+  const code = G.roomCode || document.getElementById('display-room-code').textContent;
+  navigator.clipboard?.writeText(code).catch(() => {});
+  const btn = event.target;
+  const orig = btn.textContent;
+  btn.textContent = '✅ 已複製！';
+  setTimeout(() => btn.textContent = orig, 1500);
+}
+
+// ============================================================
+//  JOIN ROOM
+// ============================================================
+function joinRoom() {
+  stopPolling();
+  const guestName = document.getElementById('guest-name').value.trim() || '訪客';
+  const code      = document.getElementById('join-code').value.trim().toUpperCase();
+  const errEl     = document.getElementById('join-error');
+  errEl.style.display = 'none';
+
+  if (code.length !== 4) {
+    errEl.textContent = '請輸入 4 位房間代碼';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const rooms = getRooms();
+  const room  = rooms[code];
+
+  if (!room) {
+    errEl.textContent = '找不到此房間，請確認代碼是否正確';
+    errEl.style.display = 'block';
+    return;
+  }
+  if (room.guest || room.started) {
+    errEl.textContent = '此房間已有玩家或遊戲已開始，無法加入';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  // FIX: mark as started before reading firstPlayer so host's resolved value is used
+  room.guest     = true;
+  room.guestName = guestName;
+  room.started   = true;
+  rooms[code]    = room;
+  saveRooms(rooms);
+
+  G.roomCode = code;
+  G.mode     = 'guest';
+  G.myPlayer = 2;
+
+  startMultiGame(room);
+}
+
+// ============================================================
+//  MULTI GAME START
+// ============================================================
+function startMultiGame(room) {
+  G.stones   = room.stones;
+  G.maxTake  = room.maxTake;
+  G.p1Name   = room.hostName;
+  G.p2Name   = room.guestName || '訪客';
+  G.gameOver = false;
+
+  // FIX: firstPlayer was already resolved by host when creating room
+  G.currentPlayer = room.firstPlayer || 1;
+  G.lastSeen      = (room.moves || []).length;
+
+  initGameUI();
+  showPanel('panel-game');
+  document.getElementById('game-mode-label').textContent =
+    G.mode === 'host' ? '🏠 雙人對戰（房主）' : '🔗 雙人對戰（訪客）';
+
+  updateStatus();
+
+  if (G.currentPlayer !== G.myPlayer) {
+    G.pollInterval = setInterval(pollMoves, 800);
+  }
+}
+
+function pollMoves() {
+  if (G.gameOver) { stopPolling(); return; }
+  const rooms = getRooms();
+  const room  = rooms[G.roomCode];
+  if (!room) { stopPolling(); return; }
+
+  const moves = room.moves || [];
+  if (moves.length > G.lastSeen) {
+    const mv = moves[G.lastSeen];
+    G.lastSeen = moves.length;
+    stopPolling();
+    applyMove(mv.player, mv.take, true);
+  }
+}
+
+function stopPolling() {
+  if (G.pollInterval) {
+    clearInterval(G.pollInterval);
+    G.pollInterval = null;
+  }
+}
+
+// ============================================================
+//  GAME INIT UI
+// ============================================================
+function initGameUI() {
+  document.getElementById('p1-name').textContent = G.p1Name;
+  document.getElementById('p2-name').textContent = G.p2Name;
+
+  // Take buttons
+  const container = document.getElementById('take-btns');
+  container.innerHTML = '';
+  for (let i = 1; i <= G.maxTake; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'take-btn';
+    btn.id = `take-${i}`;
+    btn.innerHTML = `${i}<span class="label">取 ${i} 顆</span>`;
+    btn.onclick = () => playerTake(i);
+    container.appendChild(btn);
+  }
+
+  document.getElementById('game-log').innerHTML = '';
+  document.getElementById('last-stone-warning').classList.remove('show');
+  addLog('sys', `遊戲開始！共 ${G.stones} 顆石頭，每次最多取 ${G.maxTake} 顆。取走最後一顆的人「輸」。`);
+
+  renderStones();
+  updateStatus();
+}
+
+function renderStones() {
+  const display = document.getElementById('stones-display');
+  document.getElementById('stones-count').textContent = G.stones;
+
+  display.innerHTML = '';
+  const show = Math.min(G.stones, 60);
+  for (let i = 0; i < show; i++) {
+    const s = document.createElement('div');
+    s.className = 'stone';
+    display.appendChild(s);
+  }
+  if (G.stones > 60) {
+    const more = document.createElement('span');
+    more.style.cssText = 'color:var(--text-dim);font-size:13px;align-self:center';
+    more.textContent = `…+${G.stones - 60}`;
+    display.appendChild(more);
+  }
+
+  // FIX: show/hide last-stone warning
+  const warn = document.getElementById('last-stone-warning');
+  if (G.stones === 1) {
+    // The CURRENT player is forced to take — they lose
+    const isMe = G.mode === 'ai'
+      ? G.currentPlayer === 1
+      : G.currentPlayer === G.myPlayer;
+    warn.textContent = isMe
+      ? '😱 只剩 1 顆！你被迫取走它，你輸了…'
+      : '🎉 只剩 1 顆！對手必須取走它，你獲勝！';
+    warn.classList.add('show');
+  } else {
+    warn.classList.remove('show');
+  }
+}
+
+function updateStatus() {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  const sub = document.getElementById('status-sub');
+
+  document.getElementById('p1-tag').classList.toggle('active', G.currentPlayer === 1);
+  document.getElementById('p2-tag').classList.toggle('active', G.currentPlayer === 2);
+
+  if (G.gameOver) {
+    dot.className = 'status-indicator over';
+    txt.textContent = '遊戲結束';
+    sub.textContent = '';
+    setTakeBtnsEnabled(false);
+    return;
+  }
+
+  const isMyTurn = G.mode === 'ai'
+    ? G.currentPlayer === 1
+    : G.currentPlayer === G.myPlayer;
+
+  const curName = G.currentPlayer === 1 ? G.p1Name : G.p2Name;
+
+  if (isMyTurn) {
+    dot.className = 'status-indicator your-turn';
+    if (G.stones === 1) {
+      // FIX: only 1 stone left — forced take, game will end immediately
+      txt.textContent = '你的回合（被迫取走最後一顆）';
+      sub.textContent = '按下取 1 顆完成遊戲';
+      setTakeBtnsEnabled(true);
+      // Disable buttons > remaining stones
+      for (let i = 1; i <= G.maxTake; i++) {
+        const b = document.getElementById(`take-${i}`);
+        if (b) b.disabled = i > G.stones;
+      }
+    } else {
+      const canTake = Math.min(G.maxTake, G.stones - 1);
+      txt.textContent = '你的回合';
+      sub.textContent = `可取 1 ~ ${canTake} 顆（取走最後 1 顆者輸）`;
+      setTakeBtnsEnabled(true);
+      // FIX: disable buttons that would take all remaining stones (leave 0) except when only 1 left
+      for (let i = 1; i <= G.maxTake; i++) {
+        const b = document.getElementById(`take-${i}`);
+        if (!b) continue;
+        b.disabled = i >= G.stones; // can't take all (would leave 0 in mid-game)
+      }
+    }
+  } else {
+    dot.className = 'status-indicator waiting';
+    txt.textContent = `${curName} 的回合`;
+    sub.textContent = G.mode === 'ai' ? 'AI 思考中…' : '等待對手操作…';
+    setTakeBtnsEnabled(false);
+  }
+}
+
+function setTakeBtnsEnabled(enabled) {
+  for (let i = 1; i <= G.maxTake; i++) {
+    const btn = document.getElementById(`take-${i}`);
+    if (btn) btn.disabled = !enabled;
+  }
+}
+
+function addLog(type, msg) {
+  const log = document.getElementById('game-log');
+  const el  = document.createElement('div');
+  el.className  = `log-entry log-${type}`;
+  el.textContent = msg;
+  log.appendChild(el);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ============================================================
+//  PLAYER ACTION
+// ============================================================
+function playerTake(n) {
+  if (G.gameOver) return;
+  // FIX: guard: can't take more than remaining, allow taking all only when forced (stones=1)
+  if (n > G.stones) return;
+  if (n >= G.stones && G.stones > 1) return; // can't clear all in non-forced situation
+  if (G.mode === 'ai' && G.currentPlayer !== 1) return;
+  if (G.mode !== 'ai' && G.currentPlayer !== G.myPlayer) return;
+
+  if (G.mode !== 'ai') {
+    const rooms = getRooms();
+    const room  = rooms[G.roomCode];
+    if (!room) return;
+    room.moves = room.moves || [];
+    room.moves.push({ player: G.myPlayer, take: n });
+    saveRooms(rooms);
+    G.lastSeen = room.moves.length;
+  }
+
+  applyMove(G.myPlayer, n, true);
+}
+
+function applyMove(player, n, animate) {
+  const playerName = player === 1 ? G.p1Name : G.p2Name;
+  addLog(player === 1 ? 'p1' : 'p2', `${playerName} 取走了 ${n} 顆石頭`);
+
+  // Animate taken stones
+  if (animate) {
+    const stoneEls  = document.querySelectorAll('.stone');
+    const toAnimate = Math.min(n, stoneEls.length);
+    for (let i = stoneEls.length - 1; i >= stoneEls.length - toAnimate; i--) {
+      stoneEls[i].classList.add('taken');
+    }
+  }
+
+  G.stones -= n;
+
+  // Check Misère win: person who takes LAST stone loses
+  if (G.stones === 0) {
+    G.gameOver = true;
+    const loserName  = player === 1 ? G.p1Name : G.p2Name;
+    const winner     = player === 1 ? 2 : 1;
+    const winnerName = winner === 1 ? G.p1Name : G.p2Name;
+    renderStones();
+    updateStatus();
+    addLog('sys', `${loserName} 取走了最後一顆石頭！${winnerName} 獲勝🎉`);
+    setTimeout(() => showResult(winner, winnerName, loserName), 700);
+    return;
+  }
+
+  // Switch turn
+  G.currentPlayer = G.currentPlayer === 1 ? 2 : 1;
+  renderStones();
+  updateStatus();
+
+  if (G.mode === 'ai' && G.currentPlayer === 2) {
+    setTimeout(aiTurn, 600 + Math.random() * 700);
+  } else if (G.mode !== 'ai' && G.currentPlayer !== G.myPlayer) {
+    G.pollInterval = setInterval(pollMoves, 800);
+  }
+}
+
+// ============================================================
+//  AI LOGIC — FIXED
+// ============================================================
+function aiTurn() {
+  if (G.gameOver) return;
+  const take = calcAIMove();
+  // FIX: removed premature "思考中" log — applyMove already logs the action
+  setTimeout(() => applyMove(2, take, true), 200);
+}
+
+function calcAIMove() {
+  const k = G.maxTake + 1;
+  const s = G.stones;
+
+  if (G.aiDifficulty === 'easy') {
+    if (Math.random() < 0.45) return calcOptimalMove(s, k);
+    const max = Math.min(G.maxTake, s === 1 ? 1 : s - 1);
+    return Math.floor(Math.random() * max) + 1;
+  }
+  return calcOptimalMove(s, k);
+}
+
+function calcOptimalMove(s, k) {
+  // FIX: handle s=1 (forced loss, must take 1)
+  if (s === 1) return 1;
+
+  // Misère Nim optimal strategy:
+  // Losing position: s mod k == 1  → can't win against perfect play
+  // Winning move: take enough to leave s mod k == 1
+  const remainder = s % k;
+
+  if (remainder === 1) {
+    // FIX: already in losing position — take a small random valid amount (not 0, not all)
+    const max = Math.min(G.maxTake, s - 1);
+    return Math.floor(Math.random() * max) + 1;
+  }
+
+  // FIX: remainder can be 0 when s is multiple of k
+  // take = remainder - 1 would be -1, so clamp to 1
+  let take = remainder === 0 ? k - 1 : remainder - 1;
+  // Ensure take is within [1, maxTake] and won't clear all stones
+  take = Math.max(1, Math.min(take, G.maxTake, s - 1));
+  return take;
+}
+
+// ============================================================
+//  RESULT
+// ============================================================
+function showResult(winner, winnerName, loserName) {
+  const isMe = (G.mode === 'ai' && winner === 1) ||
+               (G.mode !== 'ai' && winner === G.myPlayer);
+
+  document.getElementById('result-emoji').textContent = isMe ? '🏆' : '😔';
+  const title = document.getElementById('result-title');
+  title.textContent = isMe ? '勝利！' : '失敗';
+  title.style.color = isMe ? 'var(--accent3)' : 'var(--accent2)';
+  document.getElementById('result-msg').textContent = isMe
+    ? `恭喜 ${winnerName} 獲勝！\n${loserName} 取走了最後一顆石頭。`
+    : `${winnerName} 獲勝！\n你取走了最後一顆石頭。下次加油！`;
+
+  document.getElementById('result-overlay').classList.add('show');
+  if (isMe) launchConfetti();
+}
+
+function playAgain() {
+  document.getElementById('result-overlay').classList.remove('show');
+  // FIX: properly clean up then restart
+  stopPolling();
+  cleanupRoom();
+
+  if (G.mode === 'ai' && G.lastSettings) {
+    // Restore AI settings and replay without going back to menu
+    const s = G.lastSettings;
+    document.getElementById('ai-player-name').value = s.name;
+    document.getElementById('ai-stones').value      = s.stones;
+    document.getElementById('ai-max-take').value    = s.maxTake;
+    document.getElementById('ai-difficulty').value  = s.diff;
+    document.getElementById('ai-first').value       = s.firstSel;
+    beginAIGame();
+  } else {
+    resetCreateSteps();
+    showPanel('panel-home');
+  }
+}
+
+function goHome() {
+  document.getElementById('result-overlay').classList.remove('show');
+  stopPolling();
+  cleanupRoom();
+  resetCreateSteps();
+  G.gameOver = false;
+  G.mode = null;
+  showPanel('panel-home');
+}
+
+// FIX: cleanupRoom handles BOTH host and guest cleanup
+function cleanupRoom() {
+  if (!G.roomCode) return;
+  const rooms = getRooms();
+  if (rooms[G.roomCode]) {
+    delete rooms[G.roomCode];
+    saveRooms(rooms);
+  }
+  G.roomCode = null;
+}
+
+function resetCreateSteps() {
+  document.getElementById('create-step1').classList.add('active');
+  document.getElementById('create-step2').classList.remove('active');
+}
+
+// ============================================================
+//  CONFETTI
+// ============================================================
+function launchConfetti() {
+  const canvas = document.getElementById('confetti-canvas');
+  canvas.style.display = 'block';
+  const ctx = canvas.getContext('2d');
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const colors = ['#00e5ff','#ff4081','#69ff47','#ffd740','#ea80fc'];
+  const pieces = Array.from({length: 130}, () => ({
+    x: Math.random() * canvas.width,
+    y: Math.random() * -canvas.height * 0.5,
+    r: 4 + Math.random() * 7,
+    dy: 2.5 + Math.random() * 3.5,
+    dx: (Math.random() - 0.5) * 2,
+    tilt: Math.random() * Math.PI,
+    tiltSpeed: (Math.random() - 0.5) * 0.08,
+    color: colors[Math.floor(Math.random() * colors.length)],
+  }));
+
+  let frame = 0;
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    pieces.forEach(p => {
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.tilt);
+      ctx.beginPath();
+      ctx.fillStyle = p.color;
+      ctx.ellipse(0, 0, p.r, p.r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      p.y    += p.dy;
+      p.x    += p.dx + Math.sin(frame * 0.03 + p.tilt) * 1.2;
+      p.tilt += p.tiltSpeed;
+    });
+    frame++;
+    if (frame < 200) requestAnimationFrame(draw);
+    else { ctx.clearRect(0, 0, canvas.width, canvas.height); canvas.style.display = 'none'; }
+  }
+  draw();
+}
+
+// ============================================================
+//  INIT — clean stale rooms
+// ============================================================
+(function init() {
+  const rooms = getRooms();
+  const now   = Date.now();
+  let changed = false;
+  Object.keys(rooms).forEach(k => {
+    if (now - rooms[k].created > 3_600_000) { delete rooms[k]; changed = true; }
+  });
+  if (changed) saveRooms(rooms);
+})();
+</script>
+</body>
+</html>
