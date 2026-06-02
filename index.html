@@ -309,6 +309,9 @@
   ::-webkit-scrollbar-track{background:var(--surface);}
   ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
 </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 <canvas id="confetti-canvas"></canvas>
@@ -1532,24 +1535,27 @@ const FIREBASE_CONFIG = {
 let db = null;
 let firebaseReady = false;
 
-async function initFirebase() {
+function initFirebase() {
   if (firebaseReady) return true;
   try {
-    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
-    const { getDatabase, ref, set, get, update, remove, onValue, off } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
-    const app = initializeApp(FIREBASE_CONFIG);
-    db = getDatabase(app);
-    window._fbRef    = ref;
-    window._fbSet    = set;
-    window._fbGet    = get;
-    window._fbUpdate = update;
-    window._fbRemove = remove;
-    window._fbOnValue = onValue;
-    window._fbOff    = off;
+    if (typeof firebase === 'undefined') {
+      console.warn('Firebase SDK 未載入，使用 localStorage 模式');
+      return false;
+    }
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.database();
+    // Map compat API to internal helpers
+    window._fbRef     = (database, path) => database.ref(path);
+    window._fbSet     = (ref, data)      => ref.set(data);
+    window._fbGet     = (ref)            => ref.once('value');
+    window._fbUpdate  = (ref, data)      => ref.update(data);
+    window._fbRemove  = (ref)            => ref.remove();
+    window._fbOnValue = (ref, cb)        => { ref.on('value', cb); };
+    window._fbOff     = (ref)            => ref.off('value');
     firebaseReady = true;
     return true;
   } catch(e) {
-    console.warn('Firebase 初始化失敗，降級使用 localStorage（僅同裝置可用）:', e.message);
+    console.warn('Firebase 初始化失敗，降級使用 localStorage:', e.message);
     return false;
   }
 }
@@ -1561,9 +1567,8 @@ async function getRoom(code) {
     try {
       const snap = await window._fbGet(window._fbRef(db, `rooms/${code}`));
       return snap.exists() ? snap.val() : null;
-    } catch(e) { return null; }
+    } catch(e) { console.error('getRoom error:', e); return null; }
   }
-  // fallback: localStorage
   const rooms = _lsGetRooms();
   return rooms[code] || null;
 }
@@ -1573,7 +1578,7 @@ async function setRoom(code, data) {
     try {
       await window._fbSet(window._fbRef(db, `rooms/${code}`), data);
       return true;
-    } catch(e) { return false; }
+    } catch(e) { console.error('setRoom error:', e); return false; }
   }
   const rooms = _lsGetRooms();
   rooms[code] = data;
@@ -1586,7 +1591,7 @@ async function updateRoom(code, patch) {
     try {
       await window._fbUpdate(window._fbRef(db, `rooms/${code}`), patch);
       return true;
-    } catch(e) { return false; }
+    } catch(e) { console.error('updateRoom error:', e); return false; }
   }
   const rooms = _lsGetRooms();
   if (rooms[code]) { Object.assign(rooms[code], patch); _lsSaveRooms(rooms); }
@@ -1595,7 +1600,7 @@ async function updateRoom(code, patch) {
 
 async function deleteRoom(code) {
   if (firebaseReady && db) {
-    try { await window._fbRemove(window._fbRef(db, `rooms/${code}`)); } catch(e) {}
+    try { await window._fbRemove(window._fbRef(db, `rooms/${code}`)); } catch(e) { console.error('deleteRoom error:', e); }
   }
   const rooms = _lsGetRooms();
   delete rooms[code];
@@ -1627,10 +1632,9 @@ function stopPolling() {
 function startRoomPolling(roomCode, cb) {
   stopPolling();
   if (firebaseReady && db) {
-    // 使用 Firebase realtime listener，幾乎即時
     const roomRef = window._fbRef(db, `rooms/${roomCode}`);
     window._fbOnValue(roomRef, (snap) => {
-      if (!snap.exists()) { stopPolling(); return; }
+      if (!snap || !snap.exists()) { return; }
       cb(snap.val());
     });
     globalFirebaseUnsubscribe = () => window._fbOff(roomRef);
@@ -1662,10 +1666,9 @@ async function cleanupRoom(code) {
 }
 
 // 初始化 Firebase（頁面載入時執行）
-initFirebase().then(ok => {
-  if (ok) console.log('✅ Firebase 連線成功，跨裝置聯機已啟用');
-  else console.warn('⚠️ 使用 localStorage 模式（僅同裝置可用）');
-});
+const _fbOk = initFirebase();
+if (_fbOk) console.log('✅ Firebase 連線成功，跨裝置聯機已啟用');
+else console.warn('⚠️ 使用 localStorage 模式（僅同裝置可用）');
 
 // 清理過期房間（僅 localStorage 模式）
 (function() {
