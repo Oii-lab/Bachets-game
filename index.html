@@ -1544,14 +1544,6 @@ function initFirebase() {
     }
     firebase.initializeApp(FIREBASE_CONFIG);
     db = firebase.database();
-    // Map compat API to internal helpers
-    window._fbRef     = (database, path) => database.ref(path);
-    window._fbSet     = (ref, data)      => ref.set(data);
-    window._fbGet     = (ref)            => ref.once('value');
-    window._fbUpdate  = (ref, data)      => ref.update(data);
-    window._fbRemove  = (ref)            => ref.remove();
-    window._fbOnValue = (ref, cb)        => { ref.on('value', cb); };
-    window._fbOff     = (ref)            => ref.off('value');
     firebaseReady = true;
     return true;
   } catch(e) {
@@ -1565,7 +1557,7 @@ function initFirebase() {
 async function getRoom(code) {
   if (firebaseReady && db) {
     try {
-      const snap = await window._fbGet(window._fbRef(db, `rooms/${code}`));
+      const snap = await db.ref(`rooms/${code}`).once('value');
       return snap.exists() ? snap.val() : null;
     } catch(e) { console.error('getRoom error:', e); return null; }
   }
@@ -1576,7 +1568,7 @@ async function getRoom(code) {
 async function setRoom(code, data) {
   if (firebaseReady && db) {
     try {
-      await window._fbSet(window._fbRef(db, `rooms/${code}`), data);
+      await db.ref(`rooms/${code}`).set(data);
       return true;
     } catch(e) { console.error('setRoom error:', e); return false; }
   }
@@ -1589,7 +1581,7 @@ async function setRoom(code, data) {
 async function updateRoom(code, patch) {
   if (firebaseReady && db) {
     try {
-      await window._fbUpdate(window._fbRef(db, `rooms/${code}`), patch);
+      await db.ref(`rooms/${code}`).update(patch);
       return true;
     } catch(e) { console.error('updateRoom error:', e); return false; }
   }
@@ -1600,7 +1592,7 @@ async function updateRoom(code, patch) {
 
 async function deleteRoom(code) {
   if (firebaseReady && db) {
-    try { await window._fbRemove(window._fbRef(db, `rooms/${code}`)); } catch(e) { console.error('deleteRoom error:', e); }
+    try { await db.ref(`rooms/${code}`).remove(); } catch(e) { console.error('deleteRoom error:', e); }
   }
   const rooms = _lsGetRooms();
   delete rooms[code];
@@ -1608,11 +1600,20 @@ async function deleteRoom(code) {
 }
 
 async function pushMove(code, move) {
-  const room = await getRoom(code);
+  if (firebaseReady && db) {
+    try {
+      // Use Firebase push for atomic append
+      await db.ref(`rooms/${code}/moves`).push(move);
+      return true;
+    } catch(e) { console.error('pushMove error:', e); return false; }
+  }
+  const room = _lsGetRooms()[code];
   if (!room) return false;
-  const moves = room.moves || [];
-  moves.push(move);
-  return updateRoom(code, { moves });
+  const rooms = _lsGetRooms();
+  rooms[code].moves = rooms[code].moves || [];
+  rooms[code].moves.push(move);
+  _lsSaveRooms(rooms);
+  return true;
 }
 
 // localStorage fallback helpers
@@ -1632,12 +1633,12 @@ function stopPolling() {
 function startRoomPolling(roomCode, cb) {
   stopPolling();
   if (firebaseReady && db) {
-    const roomRef = window._fbRef(db, `rooms/${roomCode}`);
-    window._fbOnValue(roomRef, (snap) => {
+    const roomRef = db.ref(`rooms/${roomCode}`);
+    roomRef.on('value', (snap) => {
       if (!snap || !snap.exists()) { return; }
       cb(snap.val());
     });
-    globalFirebaseUnsubscribe = () => window._fbOff(roomRef);
+    globalFirebaseUnsubscribe = () => roomRef.off('value');
   } else {
     // fallback: polling localStorage
     globalPollInterval = setInterval(async () => {
@@ -1767,7 +1768,7 @@ function _bachetStart(s){
   document.getElementById('bachet-game-label').textContent='🪨 Bachet\'s Game'+(B.mode!=='cpu'?(B.myPlayer===1?' (房主)':' (訪客)'):'');
   if(B.mode==='cpu'&&B.currentPlayer===2){bUpdateStatus();setTimeout(bCpuTurn,900);}
   else{bUpdateStatus();}
-  if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer){startRoomPolling(B.roomCode,room=>{const mv=room.moves||[];if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});}
+  if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer){startRoomPolling(B.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});}
 }
 function _bachetInitUI(){
   document.getElementById('b-p1-name').textContent=B.p1Name;
@@ -1814,7 +1815,7 @@ async function bPlayerTake(n){
   if(B.stones>1&&n>=B.stones)return;
   if(B.mode==='cpu'&&B.currentPlayer!==1)return;
   if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)return;
-  if(B.mode!=='cpu'){const _r=await getRoom(B.roomCode);if(!_r)return;await pushMove(B.roomCode,{player:B.myPlayer,take:n});B.lastSeen=(_r.moves||[]).length+1;}
+  if(B.mode!=='cpu'){const _r=await getRoom(B.roomCode);if(!_r)return;await pushMove(B.roomCode,{player:B.myPlayer,take:n});B.lastSeen++;}
   bApplyMove(B.myPlayer,n,true);
 }
 function bApplyMove(player,n,animate){
@@ -1831,7 +1832,7 @@ function bApplyMove(player,n,animate){
   }
   B.currentPlayer=B.currentPlayer===1?2:1;bRenderStones();bUpdateStatus();
   if(B.mode==='cpu'&&B.currentPlayer===2)setTimeout(bCpuTurn,600+Math.random()*700);
-  else if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)startRoomPolling(B.roomCode,room=>{const mv=room.moves||[];if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});
+  else if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)startRoomPolling(B.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>B.lastSeen){const m=mv[B.lastSeen];B.lastSeen=mv.length;stopPolling();bApplyMove(m.player,m.take,true);}});
 }
 function bCpuTurn(){if(B.gameOver)return;const t=bCalcMove();setTimeout(()=>bApplyMove(2,t,true),200);}
 function bCalcMove(){const k=B.maxTake+1,s=B.stones;if(B.cpuDiff==='easy'&&Math.random()<0.45)return bOptimal(s,k);if(B.cpuDiff==='easy'){const max=Math.min(B.maxTake,s===1?1:s-1);return Math.floor(Math.random()*max)+1;}return bOptimal(s,k);}
@@ -1872,7 +1873,7 @@ function _count21Start(s){
   document.getElementById('count21-game-label').textContent=`🔢 21點報數（目標:${C.target}）`;
   if(C.mode==='cpu'&&C.currentPlayer===2){cUpdateStatus();setTimeout(cCpuTurn,900);}
   else cUpdateStatus();
-  if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer){startRoomPolling(C.roomCode,room=>{const mv=room.moves||[];if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});}
+  if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer){startRoomPolling(C.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});}
 }
 function _count21InitUI(){
   document.getElementById('c-p1-name').textContent=C.p1Name;document.getElementById('c-p2-name').textContent=C.p2Name;
@@ -1907,7 +1908,7 @@ function cSetBtns(e){for(let i=1;i<=C.maxSay;i++){const b=document.getElementByI
 async function cPlayerSay(count){
   if(C.gameOver)return;if(C.mode==='cpu'&&C.currentPlayer!==1)return;if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)return;
   const nums=Array.from({length:count},(_,i)=>C.current+i+1);if(nums[nums.length-1]>C.target)return;
-  if(C.mode!=='cpu'){const _r=await getRoom(C.roomCode);if(!_r)return;await pushMove(C.roomCode,{player:C.myPlayer,nums});C.lastSeen=(_r.moves||[]).length+1;}
+  if(C.mode!=='cpu'){const _r=await getRoom(C.roomCode);if(!_r)return;await pushMove(C.roomCode,{player:C.myPlayer,nums});C.lastSeen++;}
   cApplyMove(C.myPlayer,nums,true);
 }
 function cApplyMove(player,nums,animate){
@@ -1923,7 +1924,7 @@ function cApplyMove(player,nums,animate){
   }
   C.currentPlayer=C.currentPlayer===1?2:1;cUpdateStatus();
   if(C.mode==='cpu'&&C.currentPlayer===2)setTimeout(cCpuTurn,600+Math.random()*600);
-  else if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)startRoomPolling(C.roomCode,room=>{const mv=room.moves||[];if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});
+  else if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)startRoomPolling(C.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>C.lastSeen){const m=mv[C.lastSeen];C.lastSeen=mv.length;stopPolling();cApplyMove(m.player,m.nums,true);}});
 }
 function cCpuTurn(){if(C.gameOver)return;setTimeout(()=>cApplyMove(2,cCalcMove(),true),250);}
 function cCalcMove(){
@@ -1972,7 +1973,7 @@ function _chompStart(s){
   document.getElementById('chomp-game-label').textContent=`🍫 Chomp (${CH.cols}×${CH.rows})`;
   if(CH.mode==='cpu'&&CH.currentPlayer===2){chUpdateStatus();setTimeout(chCpuTurn,900);}
   else chUpdateStatus();
-  if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer){startRoomPolling(CH.roomCode,room=>{const mv=room.moves||[];if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});}
+  if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer){startRoomPolling(CH.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});}
 }
 function _chompInitUI(){
   document.getElementById('ch-p1-name').textContent=CH.p1Name;document.getElementById('ch-p2-name').textContent=CH.p2Name;
@@ -2003,7 +2004,7 @@ function chUpdateStatus(){
 }
 async function chPlayerClick(r,c){
   if(CH.gameOver)return;if(CH.mode==='cpu'&&CH.currentPlayer!==1)return;if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)return;if(!CH.board[r][c])return;
-  if(CH.mode!=='cpu'){const _r=await getRoom(CH.roomCode);if(!_r)return;await pushMove(CH.roomCode,{player:CH.myPlayer,r,c});CH.lastSeen=(_r.moves||[]).length+1;}
+  if(CH.mode!=='cpu'){const _r=await getRoom(CH.roomCode);if(!_r)return;await pushMove(CH.roomCode,{player:CH.myPlayer,r,c});CH.lastSeen++;}
   chApplyMove(CH.myPlayer,r,c,true);
 }
 function chApplyMove(player,r,c,animate){
@@ -2020,7 +2021,7 @@ function chApplyMove(player,r,c,animate){
   }
   CH.currentPlayer=CH.currentPlayer===1?2:1;chUpdateStatus();
   if(CH.mode==='cpu'&&CH.currentPlayer===2)setTimeout(chCpuTurn,700+Math.random()*800);
-  else if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)startRoomPolling(CH.roomCode,room=>{const mv=room.moves||[];if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});
+  else if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)startRoomPolling(CH.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>CH.lastSeen){const m=mv[CH.lastSeen];CH.lastSeen=mv.length;stopPolling();chApplyMove(m.player,m.r,m.c,true);}});
 }
 function chCpuTurn(){if(CH.gameOver)return;const m=chCalcMove();setTimeout(()=>chApplyMove(2,m.r,m.c,true),300);}
 function chCalcMove(){if(CH.cpuDiff==='easy'&&Math.random()<0.5)return chRandomMove();return chSmartMove();}
@@ -2101,7 +2102,7 @@ function _nimStart(s){
   document.getElementById('nim-game-label').textContent='⚡ Nim 多堆版'+(N.mode!=='cpu'?(N.myPlayer===1?' (房主)':' (訪客)'):'');
   if(N.mode==='cpu'&&N.currentPlayer===2){nUpdateStatus();setTimeout(nCpuTurn,900);}
   else nUpdateStatus();
-  if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer){startRoomPolling(N.roomCode,room=>{const mv=room.moves||[];if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});}
+  if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer){startRoomPolling(N.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});}
 }
 function _nimInitUI(){
   document.getElementById('n-p1-name').textContent=N.p1Name;
@@ -2181,7 +2182,7 @@ async function nPlayerTake(heapIdx,take){
   if(N.gameOver)return;
   if(N.mode==='cpu'&&N.currentPlayer!==1)return;
   if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)return;
-  if(N.mode!=='cpu'){const _r=await getRoom(N.roomCode);if(!_r)return;await pushMove(N.roomCode,{player:N.myPlayer,heap:heapIdx,take});N.lastSeen=(_r.moves||[]).length+1;}
+  if(N.mode!=='cpu'){const _r=await getRoom(N.roomCode);if(!_r)return;await pushMove(N.roomCode,{player:N.myPlayer,heap:heapIdx,take});N.lastSeen++;}
   nApplyMove(N.myPlayer,heapIdx,take,true);
 }
 function nApplyMove(player,heapIdx,take,animate){
@@ -2202,7 +2203,7 @@ function nApplyMove(player,heapIdx,take,animate){
   N.currentPlayer=N.currentPlayer===1?2:1;
   nRenderHeaps();nRenderTakeArea();nUpdateXor();nUpdateStatus();
   if(N.mode==='cpu'&&N.currentPlayer===2)setTimeout(nCpuTurn,700+Math.random()*600);
-  else if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)startRoomPolling(N.roomCode,room=>{const mv=room.moves||[];if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});
+  else if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)startRoomPolling(N.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>N.lastSeen){const m=mv[N.lastSeen];N.lastSeen=mv.length;stopPolling();nApplyMove(m.player,m.heap,m.take,true);}});
 }
 function nCpuTurn(){if(N.gameOver)return;const m=nCalcMove();setTimeout(()=>nApplyMove(2,m.heap,m.take,true),200);}
 function nCalcMove(){
@@ -2304,7 +2305,7 @@ function _wythoffStart(s){
   document.getElementById('wythoff-game-label').textContent='φ Wythoff\'s Game'+(W.mode!=='cpu'?(W.myPlayer===1?' (房主)':' (訪客)'):'');
   if(W.mode==='cpu'&&W.currentPlayer===2){wUpdateStatus();setTimeout(wCpuTurn,900);}
   else wUpdateStatus();
-  if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer){startRoomPolling(W.roomCode,room=>{const mv=room.moves||[];if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});}
+  if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer){startRoomPolling(W.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});}
 }
 function _wythoffInitUI(){
   document.getElementById('w-p1-name').textContent=W.p1Name;
@@ -2365,7 +2366,7 @@ async function wPlayerMove(newA,newB){
   if(W.mode==='cpu'&&W.currentPlayer!==1)return;
   if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)return;
   if(!wIsReachable(newA,newB))return;
-  if(W.mode!=='cpu'){const _r=await getRoom(W.roomCode);if(!_r)return;await pushMove(W.roomCode,{player:W.myPlayer,newA,newB});W.lastSeen=(_r.moves||[]).length+1;}
+  if(W.mode!=='cpu'){const _r=await getRoom(W.roomCode);if(!_r)return;await pushMove(W.roomCode,{player:W.myPlayer,newA,newB});W.lastSeen++;}
   wApplyMove(W.myPlayer,newA,newB,true);
 }
 function wApplyMove(player,newA,newB,animate){
@@ -2386,7 +2387,7 @@ function wApplyMove(player,newA,newB,animate){
   W.currentPlayer=W.currentPlayer===1?2:1;
   wRenderGrid();wUpdateHeapDisplay();wUpdateStatus();
   if(W.mode==='cpu'&&W.currentPlayer===2)setTimeout(wCpuTurn,700+Math.random()*700);
-  else if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)startRoomPolling(W.roomCode,room=>{const mv=room.moves||[];if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});
+  else if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)startRoomPolling(W.roomCode,room=>{const mv=Object.values(room.moves||{});if(mv.length>W.lastSeen){const m=mv[W.lastSeen];W.lastSeen=mv.length;stopPolling();wApplyMove(m.player,m.newA,m.newB,true);}});
 }
 function wCpuTurn(){if(W.gameOver)return;const m=wCalcMove();setTimeout(()=>wApplyMove(2,m.a,m.b,true),300);}
 function wCalcMove(){
