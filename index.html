@@ -1693,10 +1693,10 @@ function generateCode(){
   const c='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s='';for(let i=0;i<4;i++)s+=c[Math.floor(Math.random()*c.length)];return s;
 }
-function uniqueCode(){const rooms=getRooms();let code;do{code=generateCode();}while(rooms[code]);return code;}
+// uniqueCode defined above as async function
 function resolveFirst(sel){if(sel==='guest'||sel==='cpu')return 2;if(sel==='random')return Math.random()<0.5?1:2;return 1;}
 // stopPolling and globalPollInterval defined above in Firebase section
-function cleanupRoom(code){if(!code)return;const rooms=getRooms();delete rooms[code];saveRooms(rooms);}
+// cleanupRoom defined above as async function
 function selectGame(g){
   if(g==='bachet')showPanel('panel-bachet-setup');
   else if(g==='count21')showPanel('panel-count21-setup');
@@ -2450,7 +2450,7 @@ function launchConfetti(){
 }
 
 // INIT
-(function(){const rooms=getRooms();const now=Date.now();let c=false;Object.keys(rooms).forEach(k=>{if(now-rooms[k].created>3600000){delete rooms[k];c=true;}});if(c)saveRooms(rooms);})();
+(function(){const rooms=_lsGetRooms();const now=Date.now();let c=false;Object.keys(rooms).forEach(k=>{if(now-rooms[k].created>3600000){delete rooms[k];c=true;}});if(c)_lsSaveRooms(rooms);})();
 </script>
 </body>
 </html>
