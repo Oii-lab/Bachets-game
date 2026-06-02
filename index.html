@@ -1517,9 +1517,164 @@ document.addEventListener('DOMContentLoaded', ()=>{});
 // ============================================================
 //  SHARED UTILS
 // ============================================================
-const ROOMS_KEY='mathgames_rooms_v2';
-function getRooms(){try{return JSON.parse(localStorage.getItem(ROOMS_KEY)||'{}')}catch{return{}}}
-function saveRooms(r){localStorage.setItem(ROOMS_KEY,JSON.stringify(r))}
+// ============================================================
+//  FIREBASE REALTIME DATABASE — 跨裝置聯機
+//  使用前請到 https://console.firebase.google.com 建立專案
+//  將下方 FIREBASE_CONFIG 換成你的專案設定
+// ============================================================
+const FIREBASE_CONFIG = {
+  // 請換成你自己的 Firebase 設定
+  // 建立方式：Firebase Console → 新增專案 → Realtime Database → 取得設定
+  databaseURL: "https://oioilab-a81bc-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+
+// Firebase SDK（透過 CDN 載入）
+let db = null;
+let firebaseReady = false;
+
+async function initFirebase() {
+  if (firebaseReady) return true;
+  try {
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, set, get, update, remove, onValue, off } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const app = initializeApp(FIREBASE_CONFIG);
+    db = getDatabase(app);
+    window._fbRef    = ref;
+    window._fbSet    = set;
+    window._fbGet    = get;
+    window._fbUpdate = update;
+    window._fbRemove = remove;
+    window._fbOnValue = onValue;
+    window._fbOff    = off;
+    firebaseReady = true;
+    return true;
+  } catch(e) {
+    console.warn('Firebase 初始化失敗，降級使用 localStorage（僅同裝置可用）:', e.message);
+    return false;
+  }
+}
+
+// ---- 統一的房間讀寫介面（自動切換 Firebase / localStorage） ----
+
+async function getRoom(code) {
+  if (firebaseReady && db) {
+    try {
+      const snap = await window._fbGet(window._fbRef(db, `rooms/${code}`));
+      return snap.exists() ? snap.val() : null;
+    } catch(e) { return null; }
+  }
+  // fallback: localStorage
+  const rooms = _lsGetRooms();
+  return rooms[code] || null;
+}
+
+async function setRoom(code, data) {
+  if (firebaseReady && db) {
+    try {
+      await window._fbSet(window._fbRef(db, `rooms/${code}`), data);
+      return true;
+    } catch(e) { return false; }
+  }
+  const rooms = _lsGetRooms();
+  rooms[code] = data;
+  _lsSaveRooms(rooms);
+  return true;
+}
+
+async function updateRoom(code, patch) {
+  if (firebaseReady && db) {
+    try {
+      await window._fbUpdate(window._fbRef(db, `rooms/${code}`), patch);
+      return true;
+    } catch(e) { return false; }
+  }
+  const rooms = _lsGetRooms();
+  if (rooms[code]) { Object.assign(rooms[code], patch); _lsSaveRooms(rooms); }
+  return true;
+}
+
+async function deleteRoom(code) {
+  if (firebaseReady && db) {
+    try { await window._fbRemove(window._fbRef(db, `rooms/${code}`)); } catch(e) {}
+  }
+  const rooms = _lsGetRooms();
+  delete rooms[code];
+  _lsSaveRooms(rooms);
+}
+
+async function pushMove(code, move) {
+  const room = await getRoom(code);
+  if (!room) return false;
+  const moves = room.moves || [];
+  moves.push(move);
+  return updateRoom(code, { moves });
+}
+
+// localStorage fallback helpers
+const ROOMS_KEY = 'mathgames_rooms_v2';
+function _lsGetRooms() { try { return JSON.parse(localStorage.getItem(ROOMS_KEY) || '{}'); } catch { return {}; } }
+function _lsSaveRooms(r) { localStorage.setItem(ROOMS_KEY, JSON.stringify(r)); }
+
+// ---- Room polling：支援 Firebase realtime listener ----
+let globalPollInterval = null;
+let globalFirebaseUnsubscribe = null;
+
+function stopPolling() {
+  if (globalPollInterval) { clearInterval(globalPollInterval); globalPollInterval = null; }
+  if (globalFirebaseUnsubscribe) { globalFirebaseUnsubscribe(); globalFirebaseUnsubscribe = null; }
+}
+
+function startRoomPolling(roomCode, cb) {
+  stopPolling();
+  if (firebaseReady && db) {
+    // 使用 Firebase realtime listener，幾乎即時
+    const roomRef = window._fbRef(db, `rooms/${roomCode}`);
+    window._fbOnValue(roomRef, (snap) => {
+      if (!snap.exists()) { stopPolling(); return; }
+      cb(snap.val());
+    });
+    globalFirebaseUnsubscribe = () => window._fbOff(roomRef);
+  } else {
+    // fallback: polling localStorage
+    globalPollInterval = setInterval(async () => {
+      const room = await getRoom(roomCode);
+      if (!room) { stopPolling(); return; }
+      cb(room);
+    }, 800);
+  }
+}
+
+async function uniqueCode() {
+  let code;
+  let attempts = 0;
+  do {
+    code = generateCode();
+    const existing = await getRoom(code);
+    if (!existing) break;
+    attempts++;
+  } while (attempts < 10);
+  return code;
+}
+
+async function cleanupRoom(code) {
+  if (!code) return;
+  await deleteRoom(code);
+}
+
+// 初始化 Firebase（頁面載入時執行）
+initFirebase().then(ok => {
+  if (ok) console.log('✅ Firebase 連線成功，跨裝置聯機已啟用');
+  else console.warn('⚠️ 使用 localStorage 模式（僅同裝置可用）');
+});
+
+// 清理過期房間（僅 localStorage 模式）
+(function() {
+  const rooms = _lsGetRooms();
+  const now = Date.now();
+  let changed = false;
+  Object.keys(rooms).forEach(k => { if (now - rooms[k].created > 3600000) { delete rooms[k]; changed = true; } });
+  if (changed) _lsSaveRooms(rooms);
+})();
 function showPanel(id){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
@@ -1537,8 +1692,7 @@ function generateCode(){
 }
 function uniqueCode(){const rooms=getRooms();let code;do{code=generateCode();}while(rooms[code]);return code;}
 function resolveFirst(sel){if(sel==='guest'||sel==='cpu')return 2;if(sel==='random')return Math.random()<0.5?1:2;return 1;}
-let globalPollInterval=null;
-function stopPolling(){if(globalPollInterval){clearInterval(globalPollInterval);globalPollInterval=null;}}
+// stopPolling and globalPollInterval defined above in Firebase section
 function cleanupRoom(code){if(!code)return;const rooms=getRooms();delete rooms[code];saveRooms(rooms);}
 function selectGame(g){
   if(g==='bachet')showPanel('panel-bachet-setup');
@@ -1588,12 +1742,7 @@ function updatePlayerTags(p1Id,p2Id,cur){
   document.getElementById(p1Id).classList.toggle('active',cur===1);
   document.getElementById(p2Id).classList.toggle('active',cur===2);
 }
-function startRoomPolling(roomCode,cb){
-  stopPolling();
-  globalPollInterval=setInterval(()=>{
-    const rooms=getRooms();if(!rooms[roomCode]){stopPolling();return;}cb(rooms[roomCode]);
-  },800);
-}
+// startRoomPolling defined above in Firebase section
 function setBTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('btab-'+t).classList.toggle('active',t===m);document.getElementById('bmode-'+t).style.display=t===m?'block':'none';});}
 function setCTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('ctab-'+t).classList.toggle('active',t===m);document.getElementById('cmode-'+t).style.display=t===m?'block':'none';});}
 function setChTab(m){['cpu','create','join'].forEach(t=>{document.getElementById('chtab-'+t).classList.toggle('active',t===m);document.getElementById('chmode-'+t).style.display=t===m?'block':'none';});}
@@ -1657,12 +1806,12 @@ function bUpdateStatus(){
   }
 }
 function bSetBtns(e){for(let i=1;i<=B.maxTake;i++){const b=document.getElementById('btake-'+i);if(b)b.disabled=!e;}}
-function bPlayerTake(n){
+async function bPlayerTake(n){
   if(B.gameOver||n>B.stones)return;
   if(B.stones>1&&n>=B.stones)return;
   if(B.mode==='cpu'&&B.currentPlayer!==1)return;
   if(B.mode!=='cpu'&&B.currentPlayer!==B.myPlayer)return;
-  if(B.mode!=='cpu'){const rooms=getRooms();const room=rooms[B.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:B.myPlayer,take:n});saveRooms(rooms);B.lastSeen=room.moves.length;}
+  if(B.mode!=='cpu'){const _r=await getRoom(B.roomCode);if(!_r)return;await pushMove(B.roomCode,{player:B.myPlayer,take:n});B.lastSeen=(_r.moves||[]).length+1;}
   bApplyMove(B.myPlayer,n,true);
 }
 function bApplyMove(player,n,animate){
@@ -1684,24 +1833,24 @@ function bApplyMove(player,n,animate){
 function bCpuTurn(){if(B.gameOver)return;const t=bCalcMove();setTimeout(()=>bApplyMove(2,t,true),200);}
 function bCalcMove(){const k=B.maxTake+1,s=B.stones;if(B.cpuDiff==='easy'&&Math.random()<0.45)return bOptimal(s,k);if(B.cpuDiff==='easy'){const max=Math.min(B.maxTake,s===1?1:s-1);return Math.floor(Math.random()*max)+1;}return bOptimal(s,k);}
 function bOptimal(s,k){if(s===1)return 1;const r=s%k;if(r===1){const max=Math.min(B.maxTake,s-1);return Math.floor(Math.random()*max)+1;}let t=r===0?k-1:r-1;return Math.max(1,Math.min(t,B.maxTake,s-1));}
-function bachetCreateRoom(){
+async function bachetCreateRoom(){
   const hostName=document.getElementById('b-host-name').value.trim()||'房主',stones=+document.getElementById('b-room-stones').value,maxTake=+document.getElementById('b-room-max').value,firstPlayer=resolveFirst(document.getElementById('b-room-first').value);
-  const code=uniqueCode();const rooms=getRooms();
-  rooms[code]={code,game:'bachet',hostName,stones,maxTake,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  const code=await uniqueCode();
+  await setRoom(code,{code,game:'bachet',hostName,stones,maxTake,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;B.roomCode=code;
   document.getElementById('b-room-code-display').textContent=code;
   document.getElementById('bcreate-s1').classList.remove('active');document.getElementById('bcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_bachetStart({game:'bachet',mode:'host',hostName,guestName:room.guestName,stones,maxTake,myPlayer:1,roomCode:code,firstPlayer});}});
 }
-function bachetCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('bcreate-s1').classList.add('active');document.getElementById('bcreate-s2').classList.remove('active');showPanel('panel-home');}
-function bachetJoinRoom(){
+async function bachetCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('bcreate-s1').classList.add('active');document.getElementById('bcreate-s2').classList.remove('active');showPanel('panel-home');}
+async function bachetJoinRoom(){
   const guestName=document.getElementById('b-guest-name').value.trim()||'訪客',code=document.getElementById('b-join-code').value.trim().toUpperCase();
   const err=document.getElementById('b-join-err');err.style.display='none';
   if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
-  const rooms=getRooms(),room=rooms[code];
+  const room=await getRoom(code);
   if(!room||room.game!=='bachet'){err.textContent='找不到此Bachet房間';err.style.display='block';return;}
   if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
-  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  await updateRoom(code,{guest:true,guestName,started:true});CUR.roomCode=code;
   _bachetStart({game:'bachet',mode:'guest',hostName:room.hostName,guestName,name:guestName,stones:room.stones,maxTake:room.maxTake,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
@@ -1752,10 +1901,10 @@ function cUpdateStatus(){
   }
 }
 function cSetBtns(e){for(let i=1;i<=C.maxSay;i++){const b=document.getElementById('csay-'+i);if(b)b.disabled=!e;}}
-function cPlayerSay(count){
+async function cPlayerSay(count){
   if(C.gameOver)return;if(C.mode==='cpu'&&C.currentPlayer!==1)return;if(C.mode!=='cpu'&&C.currentPlayer!==C.myPlayer)return;
   const nums=Array.from({length:count},(_,i)=>C.current+i+1);if(nums[nums.length-1]>C.target)return;
-  if(C.mode!=='cpu'){const rooms=getRooms();const room=rooms[C.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:C.myPlayer,nums});saveRooms(rooms);C.lastSeen=room.moves.length;}
+  if(C.mode!=='cpu'){const _r=await getRoom(C.roomCode);if(!_r)return;await pushMove(C.roomCode,{player:C.myPlayer,nums});C.lastSeen=(_r.moves||[]).length+1;}
   cApplyMove(C.myPlayer,nums,true);
 }
 function cApplyMove(player,nums,animate){
@@ -1784,23 +1933,23 @@ function cOptimal(k,t,cur){
   const remaining=t-cur;if(remaining%k===0)return[cur+1];
   const cnt=Math.min(remaining%k,C.maxSay);return Array.from({length:cnt||1},(_,i)=>cur+i+1);
 }
-function count21CreateRoom(){
+async function count21CreateRoom(){
   const hostName=document.getElementById('c-host-name').value.trim()||'房主',target=+document.getElementById('c-room-target').value,maxSay=+document.getElementById('c-room-max').value,firstPlayer=resolveFirst(document.getElementById('c-room-first').value);
-  const code=uniqueCode();const rooms=getRooms();
-  rooms[code]={code,game:'count21',hostName,target,maxSay,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  const code=await uniqueCode();
+  await setRoom(code,{code,game:'count21',hostName,target,maxSay,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;C.roomCode=code;document.getElementById('c-room-code-display').textContent=code;
   document.getElementById('ccreate-s1').classList.remove('active');document.getElementById('ccreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_count21Start({game:'count21',mode:'host',hostName,guestName:room.guestName,target,maxSay,myPlayer:1,roomCode:code,firstPlayer});}});
 }
-function count21CancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ccreate-s1').classList.add('active');document.getElementById('ccreate-s2').classList.remove('active');showPanel('panel-home');}
-function count21JoinRoom(){
+async function count21CancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ccreate-s1').classList.add('active');document.getElementById('ccreate-s2').classList.remove('active');showPanel('panel-home');}
+async function count21JoinRoom(){
   const guestName=document.getElementById('c-guest-name').value.trim()||'訪客',code=document.getElementById('c-join-code').value.trim().toUpperCase();
   const err=document.getElementById('c-join-err');err.style.display='none';
   if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
-  const rooms=getRooms(),room=rooms[code];
+  const room=await getRoom(code);
   if(!room||room.game!=='count21'){err.textContent='找不到此21點房間';err.style.display='block';return;}
   if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
-  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  await updateRoom(code,{guest:true,guestName,started:true});CUR.roomCode=code;
   _count21Start({game:'count21',mode:'guest',hostName:room.hostName,guestName,name:guestName,target:room.target,maxSay:room.maxSay,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
@@ -1849,9 +1998,9 @@ function chUpdateStatus(){
   else{setStatusDot('ch-status-dot','waiting');document.getElementById('ch-status-text').textContent=`${curName} 的回合`;document.getElementById('ch-status-sub').textContent=CH.mode==='cpu'?'電腦計算中…':'等待對手…';}
   document.getElementById('ch-board').style.pointerEvents=isMyTurn&&!CH.gameOver?'auto':'none';
 }
-function chPlayerClick(r,c){
+async function chPlayerClick(r,c){
   if(CH.gameOver)return;if(CH.mode==='cpu'&&CH.currentPlayer!==1)return;if(CH.mode!=='cpu'&&CH.currentPlayer!==CH.myPlayer)return;if(!CH.board[r][c])return;
-  if(CH.mode!=='cpu'){const rooms=getRooms();const room=rooms[CH.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:CH.myPlayer,r,c});saveRooms(rooms);CH.lastSeen=room.moves.length;}
+  if(CH.mode!=='cpu'){const _r=await getRoom(CH.roomCode);if(!_r)return;await pushMove(CH.roomCode,{player:CH.myPlayer,r,c});CH.lastSeen=(_r.moves||[]).length+1;}
   chApplyMove(CH.myPlayer,r,c,true);
 }
 function chApplyMove(player,r,c,animate){
@@ -1906,23 +2055,23 @@ function chSmartMove(){
   }
   return chRandomMove();
 }
-function chompCreateRoom(){
+async function chompCreateRoom(){
   const hostName=document.getElementById('ch-host-name').value.trim()||'房主',sz=document.getElementById('ch-room-size').value.split('x'),cols=+sz[0],rows=+sz[1],firstPlayer=resolveFirst(document.getElementById('ch-room-first').value);
-  const code=uniqueCode();const rooms=getRooms();
-  rooms[code]={code,game:'chomp',hostName,cols,rows,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  const code=await uniqueCode();
+  await setRoom(code,{code,game:'chomp',hostName,cols,rows,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;CH.roomCode=code;document.getElementById('ch-room-code-display').textContent=code;
   document.getElementById('chcreate-s1').classList.remove('active');document.getElementById('chcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_chompStart({game:'chomp',mode:'host',hostName,guestName:room.guestName,cols,rows,myPlayer:1,roomCode:code,firstPlayer});}});
 }
-function chompCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('chcreate-s1').classList.add('active');document.getElementById('chcreate-s2').classList.remove('active');showPanel('panel-home');}
-function chompJoinRoom(){
+async function chompCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('chcreate-s1').classList.add('active');document.getElementById('chcreate-s2').classList.remove('active');showPanel('panel-home');}
+async function chompJoinRoom(){
   const guestName=document.getElementById('ch-guest-name').value.trim()||'訪客',code=document.getElementById('ch-join-code').value.trim().toUpperCase();
   const err=document.getElementById('ch-join-err');err.style.display='none';
   if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
-  const rooms=getRooms(),room=rooms[code];
+  const room=await getRoom(code);
   if(!room||room.game!=='chomp'){err.textContent='找不到此Chomp房間';err.style.display='block';return;}
   if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
-  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  await updateRoom(code,{guest:true,guestName,started:true});CUR.roomCode=code;
   _chompStart({game:'chomp',mode:'guest',hostName:room.hostName,guestName,name:guestName,cols:room.cols,rows:room.rows,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
@@ -2025,11 +2174,11 @@ function nUpdateStatus(){
     document.getElementById('n-status-sub').textContent=N.mode==='cpu'?'電腦計算中…':'等待對手…';
   }
 }
-function nPlayerTake(heapIdx,take){
+async function nPlayerTake(heapIdx,take){
   if(N.gameOver)return;
   if(N.mode==='cpu'&&N.currentPlayer!==1)return;
   if(N.mode!=='cpu'&&N.currentPlayer!==N.myPlayer)return;
-  if(N.mode!=='cpu'){const rooms=getRooms();const room=rooms[N.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:N.myPlayer,heap:heapIdx,take});saveRooms(rooms);N.lastSeen=room.moves.length;}
+  if(N.mode!=='cpu'){const _r=await getRoom(N.roomCode);if(!_r)return;await pushMove(N.roomCode,{player:N.myPlayer,heap:heapIdx,take});N.lastSeen=(_r.moves||[]).length+1;}
   nApplyMove(N.myPlayer,heapIdx,take,true);
 }
 function nApplyMove(player,heapIdx,take,animate){
@@ -2097,27 +2246,27 @@ function nOptimalMove(){
   }
   return nRandomMove();
 }
-function nimCreateRoom(){
+async function nimCreateRoom(){
   const numHeaps=+document.getElementById('n-room-heaps').value;
   const maxH=+document.getElementById('n-room-max').value;
   const heaps=Array.from({length:numHeaps},()=>Math.floor(Math.random()*(maxH-1))+1);
   const hostName=document.getElementById('n-host-name').value.trim()||'房主';
   const firstPlayer=resolveFirst(document.getElementById('n-room-first').value);
-  const code=uniqueCode();const rooms=getRooms();
-  rooms[code]={code,game:'nim',hostName,heaps,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  const code=await uniqueCode();
+  await setRoom(code,{code,game:'nim',hostName,heaps,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;N.roomCode=code;document.getElementById('n-room-code-display').textContent=code;
   document.getElementById('ncreate-s1').classList.remove('active');document.getElementById('ncreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_nimStart({game:'nim',mode:'host',hostName,guestName:room.guestName,heaps,myPlayer:1,roomCode:code,firstPlayer});}});
 }
-function nimCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ncreate-s1').classList.add('active');document.getElementById('ncreate-s2').classList.remove('active');showPanel('panel-home');}
-function nimJoinRoom(){
+async function nimCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('ncreate-s1').classList.add('active');document.getElementById('ncreate-s2').classList.remove('active');showPanel('panel-home');}
+async function nimJoinRoom(){
   const guestName=document.getElementById('n-guest-name').value.trim()||'訪客',code=document.getElementById('n-join-code').value.trim().toUpperCase();
   const err=document.getElementById('n-join-err');err.style.display='none';
   if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
-  const rooms=getRooms(),room=rooms[code];
+  const room=await getRoom(code);
   if(!room||room.game!=='nim'){err.textContent='找不到此Nim房間';err.style.display='block';return;}
   if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
-  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  await updateRoom(code,{guest:true,guestName,started:true});CUR.roomCode=code;
   _nimStart({game:'nim',mode:'guest',hostName:room.hostName,guestName,name:guestName,heaps:[...room.heaps],myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
@@ -2208,12 +2357,12 @@ function wUpdateStatus(){
     document.getElementById('w-status-sub').textContent=W.mode==='cpu'?'電腦計算中…':'等待對手…';
   }
 }
-function wPlayerMove(newA,newB){
+async function wPlayerMove(newA,newB){
   if(W.gameOver)return;
   if(W.mode==='cpu'&&W.currentPlayer!==1)return;
   if(W.mode!=='cpu'&&W.currentPlayer!==W.myPlayer)return;
   if(!wIsReachable(newA,newB))return;
-  if(W.mode!=='cpu'){const rooms=getRooms();const room=rooms[W.roomCode];if(!room)return;room.moves=room.moves||[];room.moves.push({player:W.myPlayer,newA,newB});saveRooms(rooms);W.lastSeen=room.moves.length;}
+  if(W.mode!=='cpu'){const _r=await getRoom(W.roomCode);if(!_r)return;await pushMove(W.roomCode,{player:W.myPlayer,newA,newB});W.lastSeen=(_r.moves||[]).length+1;}
   wApplyMove(W.myPlayer,newA,newB,true);
 }
 function wApplyMove(player,newA,newB,animate){
@@ -2257,26 +2406,26 @@ function wOptimalMove(){
   for(let k=1;k<=d;k++) if(wythoffIsLosing(W.heapA-k,W.heapB-k)) return{a:W.heapA-k,b:W.heapB-k};
   return wRandomMove();
 }
-function wythoffCreateRoom(){
+async function wythoffCreateRoom(){
   const maxV=+document.getElementById('w-room-max').value;
   const hostName=document.getElementById('w-host-name').value.trim()||'房主';
   let a,b;do{a=Math.floor(Math.random()*maxV)+1;b=Math.floor(Math.random()*maxV)+1;}while(wythoffIsLosing(a,b)||(a===0&&b===0));
   const firstPlayer=resolveFirst(document.getElementById('w-room-first').value);
-  const code=uniqueCode();const rooms=getRooms();
-  rooms[code]={code,game:'wythoff',hostName,heapA:a,heapB:b,maxVal:maxV,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()};saveRooms(rooms);
+  const code=await uniqueCode();
+  await setRoom(code,{code,game:'wythoff',hostName,heapA:a,heapB:b,maxVal:maxV,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;W.roomCode=code;document.getElementById('w-room-code-display').textContent=code;
   document.getElementById('wcreate-s1').classList.remove('active');document.getElementById('wcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_wythoffStart({game:'wythoff',mode:'host',hostName,guestName:room.guestName,heapA:a,heapB:b,maxVal:maxV,myPlayer:1,roomCode:code,firstPlayer});}});
 }
-function wythoffCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('wcreate-s1').classList.add('active');document.getElementById('wcreate-s2').classList.remove('active');showPanel('panel-home');}
-function wythoffJoinRoom(){
+async function wythoffCancelRoom(){stopPolling();if(CUR.roomCode){cleanupRoom(CUR.roomCode);CUR.roomCode=null;}document.getElementById('wcreate-s1').classList.add('active');document.getElementById('wcreate-s2').classList.remove('active');showPanel('panel-home');}
+async function wythoffJoinRoom(){
   const guestName=document.getElementById('w-guest-name').value.trim()||'訪客',code=document.getElementById('w-join-code').value.trim().toUpperCase();
   const err=document.getElementById('w-join-err');err.style.display='none';
   if(code.length!==4){err.textContent='請輸入4位代碼';err.style.display='block';return;}
-  const rooms=getRooms(),room=rooms[code];
+  const room=await getRoom(code);
   if(!room||room.game!=='wythoff'){err.textContent='找不到此Wythoff房間';err.style.display='block';return;}
   if(room.guest||room.started){err.textContent='房間已滿';err.style.display='block';return;}
-  room.guest=true;room.guestName=guestName;room.started=true;rooms[code]=room;saveRooms(rooms);CUR.roomCode=code;
+  await updateRoom(code,{guest:true,guestName,started:true});CUR.roomCode=code;
   _wythoffStart({game:'wythoff',mode:'guest',hostName:room.hostName,guestName,name:guestName,heapA:room.heapA,heapB:room.heapB,maxVal:room.maxVal,myPlayer:2,roomCode:code,firstPlayer:room.firstPlayer});
 }
 
