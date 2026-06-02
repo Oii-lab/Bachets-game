@@ -96,8 +96,28 @@
   .input-group{margin-bottom:14px;}
   .input-group label{display:block;font-size:11px;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;}
   .input-group input,.input-group select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;
-    padding:11px 15px;color:var(--text);font-size:14px;font-family:inherit;transition:border-color 0.2s,box-shadow 0.2s;outline:none;appearance:none;}
+    padding:13px 15px;color:var(--text);font-size:16px;font-family:inherit;transition:border-color 0.2s,box-shadow 0.2s;outline:none;
+    -webkit-appearance:none;-moz-appearance:none;appearance:none;min-height:48px;}
   .input-group input:focus,.input-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,229,255,0.1);}
+  /* Select arrow */
+  .input-group .select-wrap{position:relative;}
+  .input-group .select-wrap::after{content:"▾";position:absolute;right:14px;top:50%;transform:translateY(-50%);
+    color:var(--text-dim);pointer-events:none;font-size:14px;}
+  /* Mobile: bigger buttons and touch targets */
+  @media(max-width:600px){
+    .btn{min-height:44px;font-size:15px;}
+    .btn-lg{min-height:52px;font-size:17px;}
+    .mode-tab{min-height:44px;font-size:14px;padding:10px 8px;}
+    .take-btn{width:68px;height:68px;font-size:22px;}
+    .say-btn{min-height:68px;font-size:17px;}
+    .heap-btn{min-height:44px;font-size:14px;padding:10px 18px;}
+    .container{padding:20px 14px 80px;}
+    header .title{font-size:clamp(24px,7vw,40px);}
+    .players-row{gap:8px;}
+    .panel{padding:20px 16px;}
+    .stones-count{font-size:36px;}
+    .count-big{font-size:56px;}
+  }
 
   .game-select-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:8px;}
   @media(max-width:540px){.game-select-grid{grid-template-columns:1fr;}}
@@ -142,6 +162,7 @@
 
   .result-overlay{position:fixed;inset:0;background:rgba(10,10,15,0.88);align-items:center;justify-content:center;
     z-index:100;backdrop-filter:blur(5px);display:none;}
+  #disconnect-overlay.show{display:flex!important;}
   .result-overlay.show{display:flex;animation:fadeIn 0.3s ease;}
   .result-box{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:40px;
     text-align:center;max-width:360px;width:90%;}
@@ -1408,17 +1429,35 @@ states_chomp_7x5 ≈ <span class="num">數萬</span>  <span class="cmt"># Minima
 <!-- ===== RULES ===== -->
 <div class="panel" id="panel-rules">
   <div class="panel-title">📖 遊戲規則</div>
-  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
-    <strong style="color:var(--accent);">🪨 Bachet's Game</strong><br>
-    桌上有 N 顆石頭，兩人輪流取，每次取 1~M 顆。<strong style="color:var(--text)">取走最後一顆的人輸</strong>（Misère 規則）。
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;">
+    <strong style="color:var(--accent);">🪨 Bachet's Game（取石遊戲）</strong><br>
+    桌上有 N 顆石頭，兩人輪流取，每次可取 <strong style="color:var(--text)">1 ~ M 顆</strong>。<br>
+    <strong style="color:var(--accent2)">取走最後一顆的人輸</strong>（Misère 規則）。<br>
+    必勝策略：讓剩餘石頭數 mod (M+1) = 1，對手就陷入必敗位置。
   </div>
-  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;">
     <strong style="color:var(--accent4);">🔢 21點報數</strong><br>
-    兩人輪流從 1 開始往上報數，每次可報 1~M 個。<strong style="color:var(--text)">說到目標數字者輸</strong>。本質與 Bachet's Game 完全相同！
+    兩人輪流從 1 開始往上報數，每次可報 <strong style="color:var(--text)">1 ~ M 個連續數字</strong>。<br>
+    <strong style="color:var(--accent2)">說到目標數字（如 21）的人輸</strong>。<br>
+    本質與 Bachet's Game 完全相同，只是換了外殼。必勝策略：讓累計數 mod (M+1) 落在對手身上。
   </div>
-  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:14px;">
-    <strong style="color:var(--accent2);">🍫 Chomp</strong><br>
-    一塊 M×N 巧克力，左下角是☠️毒格。點擊一格，該格及右方、上方所有格都被吃掉。<strong style="color:var(--text)">被迫吃毒格者輸</strong>。數學上先手必勝，但沒有已知通用策略！
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;">
+    <strong style="color:var(--accent3);">⚡ Nim 多堆版</strong><br>
+    有多堆石頭，兩人輪流，每次從<strong style="color:var(--text)">任一堆</strong>取任意數量（至少 1 顆）。<br>
+    <strong style="color:var(--accent2)">取走最後一顆的人輸</strong>（Misère 規則）。<br>
+    必勝策略：計算所有堆的 <strong style="color:var(--text)">XOR（Nim-sum）</strong>，使對手面對 Nim-sum = 0 的局面。
+  </div>
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;">
+    <strong style="color:var(--accent5);">φ Wythoff's Game</strong><br>
+    有兩堆石頭，兩人輪流，每次可從<strong style="color:var(--text)">任一堆</strong>取任意數，或從<strong style="color:var(--text)">兩堆同時取相同數量</strong>。<br>
+    <strong style="color:var(--accent3)">取走最後一顆石頭的人贏</strong>（Standard 規則）。<br>
+    必敗位置：(⌊n·φ⌋, ⌊n·φ²⌋)，其中 φ = (1+√5)/2 ≈ 1.618（黃金比例）。棋盤上的紅色格子即為必敗位置。
+  </div>
+  <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;font-size:13px;color:var(--text-dim);line-height:1.9;margin-bottom:10px;">
+    <strong style="color:var(--accent2);">🍫 Chomp（吃巧克力）</strong><br>
+    一塊 M×N 巧克力，左下角是 ☠️ 毒格。每次點擊一格，<strong style="color:var(--text)">該格及其右方、上方所有格</strong>都會被吃掉。<br>
+    <strong style="color:var(--accent2)">被迫吃到毒格的人輸</strong>。<br>
+    數學上可以證明先手必勝（Zermelo 定理），但目前沒有已知的通用必勝策略，是組合賽局理論中的開放問題！
   </div>
   <div class="btn-row">
     <button class="btn btn-outline" onclick="showPanel('panel-home')">← 返回</button>
@@ -1427,6 +1466,20 @@ states_chomp_7x5 ≈ <span class="num">數萬</span>  <span class="cmt"># Minima
 </div>
 
 </div><!-- /container -->
+
+<!-- Disconnect overlay -->
+<div id="disconnect-overlay" style="display:none;position:fixed;inset:0;background:rgba(10,10,15,0.92);
+  z-index:150;backdrop-filter:blur(6px);align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--accent2);border-radius:20px;padding:36px;
+    text-align:center;max-width:320px;width:90%;">
+    <div style="font-size:48px;margin-bottom:12px;">😔</div>
+    <div style="font-family:'Orbitron',monospace;font-size:16px;font-weight:900;color:var(--accent2);margin-bottom:10px;">對手已離開</div>
+    <div style="font-size:13px;color:var(--text-dim);margin-bottom:24px;line-height:1.7;">
+      房間已關閉，遊戲無法繼續。<br>可以重新開一間房間邀請朋友。
+    </div>
+    <button class="btn btn-primary" onclick="dismissDisconnect()" style="width:100%">🏠 回主選單</button>
+  </div>
+</div>
 
 <div class="result-overlay" id="result-overlay">
   <div class="result-box">
@@ -1635,8 +1688,20 @@ function startRoomPolling(roomCode, cb) {
   if (firebaseReady && db) {
     const roomRef = db.ref(`rooms/${roomCode}`);
     roomRef.on('value', (snap) => {
-      if (!snap || !snap.exists()) { return; }
-      cb(snap.val());
+      if (!snap || !snap.exists()) {
+        // Room deleted — opponent left
+        stopPolling();
+        showDisconnect();
+        return;
+      }
+      const room = snap.val();
+      // Check if host marked room as closed
+      if (room.closed) {
+        stopPolling();
+        showDisconnect();
+        return;
+      }
+      cb(room);
     });
     globalFirebaseUnsubscribe = () => roomRef.off('value');
   } else {
@@ -1670,6 +1735,25 @@ async function cleanupRoom(code) {
 const _fbOk = initFirebase();
 if (_fbOk) console.log('✅ Firebase 連線成功，跨裝置聯機已啟用');
 else console.warn('⚠️ 使用 localStorage 模式（僅同裝置可用）');
+
+function showDisconnect() {
+  // Don't show if game already over or not in a multiplayer game
+  if (!CUR.roomCode) return;
+  if (CUR.game && window[CUR.game.toUpperCase()] && window[CUR.game.toUpperCase()].gameOver) return;
+  document.getElementById('disconnect-overlay').classList.add('show');
+}
+function dismissDisconnect() {
+  document.getElementById('disconnect-overlay').classList.remove('show');
+  goHome();
+}
+
+// Register onDisconnect — when host closes tab, mark room as closed
+async function registerHostDisconnect(code) {
+  if (!firebaseReady || !db) return;
+  try {
+    await db.ref(`rooms/${code}/closed`).onDisconnect().set(true);
+  } catch(e) {}
+}
 
 // 清理過期房間（僅 localStorage 模式）
 (function() {
@@ -1843,6 +1927,7 @@ async function bachetCreateRoom(){
   await setRoom(code,{code,game:'bachet',hostName,stones,maxTake,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;B.roomCode=code;
   document.getElementById('b-room-code-display').textContent=code;
+  registerHostDisconnect(code);
   document.getElementById('bcreate-s1').classList.remove('active');document.getElementById('bcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_bachetStart({game:'bachet',mode:'host',hostName,guestName:room.guestName,stones,maxTake,myPlayer:1,roomCode:code,firstPlayer});}});
 }
@@ -1942,6 +2027,7 @@ async function count21CreateRoom(){
   const code=await uniqueCode();
   await setRoom(code,{code,game:'count21',hostName,target,maxSay,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;C.roomCode=code;document.getElementById('c-room-code-display').textContent=code;
+  registerHostDisconnect(code);  // auto-close room if host disconnects
   document.getElementById('ccreate-s1').classList.remove('active');document.getElementById('ccreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_count21Start({game:'count21',mode:'host',hostName,guestName:room.guestName,target,maxSay,myPlayer:1,roomCode:code,firstPlayer});}});
 }
@@ -2064,6 +2150,7 @@ async function chompCreateRoom(){
   const code=await uniqueCode();
   await setRoom(code,{code,game:'chomp',hostName,cols,rows,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;CH.roomCode=code;document.getElementById('ch-room-code-display').textContent=code;
+  registerHostDisconnect(code);  // auto-close room if host disconnects
   document.getElementById('chcreate-s1').classList.remove('active');document.getElementById('chcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_chompStart({game:'chomp',mode:'host',hostName,guestName:room.guestName,cols,rows,myPlayer:1,roomCode:code,firstPlayer});}});
 }
@@ -2259,6 +2346,7 @@ async function nimCreateRoom(){
   const code=await uniqueCode();
   await setRoom(code,{code,game:'nim',hostName,heaps,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;N.roomCode=code;document.getElementById('n-room-code-display').textContent=code;
+  registerHostDisconnect(code);  // auto-close room if host disconnects
   document.getElementById('ncreate-s1').classList.remove('active');document.getElementById('ncreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_nimStart({game:'nim',mode:'host',hostName,guestName:room.guestName,heaps,myPlayer:1,roomCode:code,firstPlayer});}});
 }
@@ -2418,6 +2506,7 @@ async function wythoffCreateRoom(){
   const code=await uniqueCode();
   await setRoom(code,{code,game:'wythoff',hostName,heapA:a,heapB:b,maxVal:maxV,firstPlayer,guest:false,guestName:null,started:false,moves:[],created:Date.now()});
   CUR.roomCode=code;W.roomCode=code;document.getElementById('w-room-code-display').textContent=code;
+  registerHostDisconnect(code);  // auto-close room if host disconnects
   document.getElementById('wcreate-s1').classList.remove('active');document.getElementById('wcreate-s2').classList.add('active');
   startRoomPolling(code,room=>{if(room.guest){stopPolling();_wythoffStart({game:'wythoff',mode:'host',hostName,guestName:room.guestName,heapA:a,heapB:b,maxVal:maxV,myPlayer:1,roomCode:code,firstPlayer});}});
 }
